@@ -17,7 +17,7 @@ export const demo = seeds.map(([name, age, gender, city, bio, interests], n) => 
     if (n && (q.id + n) % (n + 4) === 0) continue;
     const baseline = (q.id * 7 + Math.floor(q.id / 5)) % q.options.length;
     const answer = n === 0 || (q.id * (n + 3)) % 11 > n ? baseline : (baseline + (n % 3) + 1) % q.options.length;
-    answers[q.id] = { answer, acceptable: [answer, (answer + 1) % q.options.length], importance: [1, 10, 50, 250][q.id % 4], private: q.id % 17 === 0, noPreference: q.id % 19 === 0 };
+    answers[q.id] = { answer, acceptable: q.options.length === 2 ? [answer] : [answer, (answer + 1) % q.options.length], importance: [1, 10, 50, 250][q.id % 4], private: q.id % 17 === 0, noPreference: q.id % 19 === 0 };
   }
   return { id: `demo-${n}`, name, age, gender, desired: [...genders], city, bio, interests, answers, fictional: true };
 });

@@ -1,3 +1,4 @@
+import { historicalQuestions, laterChoices } from './historical.js';
 const groups = [
 ['Values', [
 ['When honesty might hurt someone, what do you usually choose?', 'Gentle directness|Wait for a better moment|Only speak if asked|Say it plainly right away'],
@@ -168,12 +169,12 @@ const groups = [
 ['What would make you feel ready for a big life change?', 'A detailed plan|A financial cushion|Support from loved ones|A strong sense of purpose'],
 ['What do you hope a future partner helps you do?', 'Grow|Feel at home|Explore|Build something meaningful']]]
 ];
-const originals = groups.flatMap(([topic, entries], t) => entries.map(([prompt, choices], i) => ({ id: t * 20 + i + 1, topic, prompt, options: choices.split('|') })));
+const writtenQuestions = groups.flatMap(([topic, entries], t) => entries.map(([prompt, choices], i) => ({ id: t * 20 + i + 1, topic, prompt, options: choices.split('|') })));
 export const topics = groups.map(([name]) => name);
 
-const provenance = { label: 'Historical prompt · OkTrends, 8 Feb 2011', url: 'https://web.archive.org/web/20110209230710/http://blog.okcupid.com/index.php/the-best-questions-for-first-dates/', options: 'Answer choices adapted for okaycupid; not a recovered original option set.' };
-export const questions = [...originals, ...[
+const provenance = { label: 'Historical prompt · OkTrends, 8 Feb 2011', url: 'https://web.archive.org/web/20110209230710/http://blog.okcupid.com/index.php/the-best-questions-for-first-dates/', options: 'Answer choices adapted for okaycupid; not a recovered original option set.', optionsStatus: 'adapted' };
+export const questions = [...writtenQuestions, ...[
   ['Do you like horror movies?', 'Interests', ['Yes', 'No', 'Sometimes']],
   ['Have you ever traveled around another country alone?', 'Lifestyle', ['Yes', 'No']],
   ["Wouldn't it be fun to chuck it all and go live on a sailboat?", 'Future', ['Yes', 'No', 'Maybe for a while']]
-].map(([prompt, topic, options], i) => ({ id: 161 + i, prompt, topic, options, provenance }))];
+].map(([prompt, topic, options], i) => ({ id: 161 + i, prompt, topic, options, provenance: i === 1 ? { ...laterChoices, sourceQuestionId: '113' } : provenance })), ...historicalQuestions];

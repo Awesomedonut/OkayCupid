@@ -2,7 +2,7 @@
 
 A self-hostable, question-based way to explore compatibility. Answer what matters, choose the answers you accept in a partner, and look at both shared ground and differences. No swiping, external images, paid services, or sensitive-answer analytics.
 
-okaycupid includes 160 original questions across eight topics plus three sourced historical prompts with adapted choices, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
+okaycupid includes 81 prompts documented in 2011 across eight topics, alongside 160 questions written for this app by an AI implementation agent, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
 
 ## Run locally
 
@@ -32,11 +32,13 @@ For frontend development, run `npm start` in one terminal and `npm run dev` in a
 ## Use it
 
 1. Explore the fictional community as Alex, or register an adult account with a password of at least 12 characters.
-2. In Questions, select your answer, all acceptable partner answers, and importance. “No preference,” all acceptable options, or none sets zero directional weight while preserving your own answer. Save, edit, skip, remove, or mark an answer private.
+2. Questions opens the historical collection. Choose a collection or topic, search, then select your answer, all acceptable partner answers, and importance. “No preference,” all acceptable options, or none sets zero directional weight while preserving your own answer. Save, edit, skip, remove, or mark an answer private.
 3. Navigate topics or search across all questions or filter answered/unanswered/skipped questions. Saving is explicit; skipping does not erase a saved answer. Reloading retains saved answers, optional explanations, and skip/revisit markers. Save & next advances after saving; saving a skipped question clears its revisit marker.
 4. Discover eligible people. Search by name, biography, or interests; filter city, age band, compatibility, and shared topics. Sort by compatibility, overlap, or name.
 5. Open a comparison to see both directional satisfaction fractions, overlap, shared answers, and important differences. Private answer details are excluded.
 6. Open your name in the header to edit your profile, export your own data as JSON, or permanently delete your account from the active database.
+
+Of the 81 historical prompts, 28 include choices documented in 2011, 51 use choices witnessed in a 2022 question file, and two retain adapted choices. The source and evidence date are shown on every question. This is a recovered subset, not the complete early bank. Existing question IDs and saved answer meanings are preserved.
 
 See [the matching specification and historical sources](docs/matching.md). Published scores subtract the historical 1/N adjustment from raw geometric compatibility, clamped at zero. Scores summarize preferences, not chemistry or safety. Historical uncertainty and deliberate deviations are documented there.
 
@@ -69,4 +71,4 @@ Use `npm run backup -- SNAPSHOT_PATH` for a consistent online SQLite snapshot an
 
 ## License
 
-[MIT](LICENSE). okaycupid is independent of OkCupid and TED. External historical sources remain their authors’ works.
+[MIT](LICENSE). okaycupid is independent of OkCupid and TED. External historical sources remain their authors’ works. See [source attribution and third-party notices](THIRD_PARTY_NOTICES.md).

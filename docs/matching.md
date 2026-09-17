@@ -13,7 +13,7 @@ The TED transcript has an imprecise “nth root” passage and mentions a small-
 
 ## Inputs and calculation
 
-Each original question has four options. A member saves:
+The 160 app-written questions have four options; historical questions have two to four sourced or explicitly adapted options. A member saves:
 
 - Their own answer, exactly one option.
 - Zero or more acceptable partner options, which need not include their own answer.
@@ -67,20 +67,29 @@ The demo uses one fictional viewer (Alex) and eight fictional candidates. All ar
 
 ## Deliberate scope choices
 
-The 160 baseline questions, biographies, typographic avatars, topic labels, thresholds, and interface copy are original. No photos or profiles are scraped. The UI offers lists and comparisons, not swiping. No hidden engagement ranking, message system, identity verification, or moderation service is implemented. Age 18+ is self-attested and validated on the server; it is not verified against identity documents. These choices keep the app inspectable and self-hostable without suggesting production moderation readiness.
+The 160 baseline questions were written by an AI implementation agent for this app. They were not recovered from historical OkCupid. Earlier “original questions” wording meant newly authored, but was ambiguous; the interface now labels them “Written for okaycupid · AI-authored.” Biographies, typographic avatars, topic assignments, thresholds, and interface copy were also created for this app. No photos or profiles are scraped. The UI offers lists and comparisons, not swiping. No hidden engagement ranking, message system, identity verification, or moderation service is implemented. Age 18+ is self-attested and validated on the server; it is not verified against identity documents. These choices keep the app inspectable and self-hostable without suggesting production moderation readiness.
 
 
-## Researched questionnaire subset and answering loop
+## Recovered questions and evidence dates
 
-[Christian Rudder, “The Best Questions For A First Date,” OkTrends, February 8, 2011](https://web.archive.org/web/20110209230710/http://blog.okcupid.com/index.php/the-best-questions-for-first-dates/) was retrieved September 17, 2026 from the February 9, 2011 archive. The article explicitly identifies its input as OkCupid match questions, prints the three prompts below in its long-term-potential section, and describes a checkbox to keep an answer private. This primary source establishes these prompts' public use by that date; it does not establish the complete original bank or exact answer-option sets. Its statistical relationship claims are not adopted as predictions or added scoring weights here.
+The first implementation authored 160 new questions. The next pass located three 2011 prompts but missed the much larger question array embedded in the article's JavaScript. The deeper search inspected that array, a contemporaneous listing, an original screenshot, and a later question-only CSV. All sources below were retrieved September 17, 2026.
 
-| ID | Publicly documented prompt | Implementation |
+| Source | What it establishes | Limits |
 | --- | --- | --- |
-| 161 | Do you like horror movies? | Yes / No / Sometimes |
-| 162 | Have you ever traveled around another country alone? | Yes / No |
-| 163 | Wouldn't it be fun to chuck it all and go live on a sailboat? | Yes / No / Maybe for a while |
+| [Christian Rudder, “The Best Questions For A First Date,” official OkTrends, February 8, 2011](https://web.archive.org/web/20110209230710/http://blog.okcupid.com/index.php/the-best-questions-for-first-dates/) | Its embedded `var questions` chart array contains **162 prompt entries**. The article describes OkCupid match questions and private answers. | The chart does not contain the answer-option sets. It is a sample, not the whole bank: the article reports 275,294 questions in the database at the time, many submitted by users. |
+| [Infochimps public listing, archived October 31, 2011](https://web.archive.org/web/20111031212852/http://www.infochimps.com/datasets/personality-insights-okcupid-questions-and-answers-by-gender-age) | Prints **28 questions with choices**. Its source numbering runs 0–28, skipping 14. | A contemporaneous third-party listing, not an official full-bank export. Only the publicly printed questions were used; no response dataset was purchased or downloaded. |
+| [Original OkTrends question screenshot, February 2011 archive](https://web.archive.org/web/20110209230710im_/http://cdn.okccdn.com/blog/first_date_questions/PrivateQuestion2.png) | “Are you looking for a partner to have children with?” with **Yes / No**, and an answer-privacy checkbox. | The chart's “someone” wording differs from the screenshot's “a partner”; these were not conflated. |
+| [Mathias Gatti's question-only CSV, fixed January 21, 2022 revision](https://github.com/mathigatti/okCupidScraper/blob/47967ab9745e13300b46a7ead2e5c0d1b02fe216/questions.csv) | **3,330 question records** with choice arrays. 53 prompts match the official 2011 chart after case/punctuation/spacing normalization. | Establishes choices in this later file, not in 2011. We did not run the scraper or download member/profile/response datasets. The repository carries MIT terms; see [third-party notices](../THIRD_PARTY_NOTICES.md). Those terms do not establish ownership of every historical question. |
 
-These are a modest three-prompt historical quotation subset, visibly distinguished in the questionnaire and comparisons. **All listed answer choices are adapted for okaycupid**, not claimed historical transcriptions. Source wording remains the original authors' work. IDs 1–160 and their existing four-option sets are preserved. No private profiles, user answer dataset, or bulk question corpus is imported. Actual remote web searches were attempted; the Firecrawl keyless tier was rate-limited and a Bing search gave weak results. The verified archive, rather than search snippets, supports this subset. Raw search responses remain outside the repository.
+The app now contains **81 historical prompts** and the 160 separately labeled app-written questions. It opens the historical collection by default and offers a stricter “Prompt + choices from 2011” collection. Search operates within the selected collection, across topics. The per-question provenance in `shared/historical.js` and `shared/questions.js` includes prompt and choice sources and distinguishes:
+
+- **28 questions with contemporary choices**, IDs 164–191: the 2011 listing, with the original screenshot supplying the child-partner question's exact Yes/No display.
+- **51 questions with later choices**, ID 162 and IDs 192–241: prompts witnessed in the 2011 article, choices from the 2022 file. Two of the 53 overlapping prompts (“Are you happy with your life?” and the dice question) instead use their earlier listing choices. ID 162 already had the same Yes/No ordering and did not need an answer change.
+- **Two questions with adapted choices**, IDs 161 and 163: horror movies (Yes / No / Sometimes) and living on a sailboat (Yes / No / Maybe for a while). Their existing answer meanings are retained and their choices remain explicitly marked as adapted.
+
+The distinctions are substantive: the 2011 listing gives “Are you happy with your life?” three options, including “Most of the time.”, whereas the 2022 file has only Yes/No. We do not infer original options merely because a prompt looks binary. The unpaired chart prompts are research findings, not silently converted into invented historical questions. Dated wording, including the listing's “descent yard” typo, is preserved. Topic grouping is an okaycupid choice.
+
+IDs 1–163, all existing prompt/option orderings, and stored answers are unchanged. New IDs are appended. The 162 chart entries and the later 3,330-row file are **not a recovered complete original questionnaire**. The app uses only this attributed, cross-checked subset; raw research remains outside Git. No matching weights are inferred from the article's correlation claims.
 
 The archived 2014 official help and Rudder's 2013 explanation independently corroborate the three-part answering model; the 2011 article supports answer privacy. They do not verify every old navigation control. Search, answered/unanswered/skipped views, durable revisit markers, unrestricted answer editing, save-and-next, and optional 1000-character explanations are explicitly **okaycupid usability choices**, not claims of exact historical UI reproduction. Explanations are plain text and follow the answer's privacy setting. They do not affect scoring; a comparison shows them only when both answers are public. Skip markers have no matching weight, survive restart, and never erase an existing saved answer. Saving removes that question's skip marker.
 

@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync, existsSync, utimesSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { createApp } from '../server/app.js';
+import { snapshot, scheduledBackup } from '../scripts/database.js';
+test('WAL snapshot and safe restore preserve accounts, answers, skips and identities', async () => {
+  mkdirSync('.data', { recursive: true });
+  const dir = mkdtempSync(resolve('.data/backup-test-'));
+  const source = join(dir, 'source.sqlite'), copy = join(dir, 'copy.sqlite'), restored = join(dir, 'restored.sqlite');
+  const { app, db } = createApp({ database: source });
+  const server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
+  let reopened, restoredServer;
+  try {
+    const registration = await fetch(`http://127.0.0.1:${server.address().port}/api/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Fiction', email: 'fiction@example.test', password: 'fictional-backup-password', age: 30, adult: true, gender: 'Nonbinary', desired: ['Nonbinary'], city: '', bio: '', interests: '' }) });
+    assert.equal(registration.status, 201);
+    db.prepare("INSERT INTO identities VALUES ('google','fictional-sub',1)").run();
+    db.prepare('INSERT INTO answers VALUES (1, 161, ?)').run(JSON.stringify({ answer: 0, acceptable: [0], importance: 50, private: true, noPreference: false, explanation: 'Fictional backup test' }));
+    db.prepare('INSERT INTO skipped VALUES (1, 162)').run();
+    db.prepare("INSERT INTO sessions VALUES ('fictional-digest',1,9999999999999)").run();
+    assert.ok(existsSync(`${source}-wal`));
+    await snapshot(source, copy);
+    assert.equal(statSync(copy).mode & 0o777, 0o600);
+    db.prepare("UPDATE users SET name = 'Later'").run();
+    await assert.rejects(snapshot(copy, source, true), /already exists/);
+    await assert.rejects(snapshot(source, copy), /already exists/);
+    await snapshot(copy, restored, true);
+    const restoredApp = createApp({ database: restored });
+    reopened = restoredApp.db;
+    assert.equal(reopened.prepare('SELECT name FROM users').get().name, 'Fiction');
+    assert.equal(reopened.prepare('SELECT subject FROM identities').get().subject, 'fictional-sub');
+    assert.equal(JSON.parse(reopened.prepare('SELECT value FROM answers').get().value).explanation, 'Fictional backup test');
+    assert.equal(reopened.prepare('SELECT question_id FROM skipped').get().question_id, 162);
+    assert.equal(reopened.prepare('SELECT COUNT(*) n FROM sessions').get().n, 0);
+    restoredServer = await new Promise(resolve => { const s = restoredApp.app.listen(0, '127.0.0.1', () => resolve(s)); });
+    const login = await fetch(`http://127.0.0.1:${restoredServer.address().port}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'fiction@example.test', password: 'fictional-backup-password' }) });
+    assert.equal(login.status, 200);
+    const me = await (await fetch(`http://127.0.0.1:${restoredServer.address().port}/api/me`, { headers: { cookie: login.headers.get('set-cookie').split(';')[0] } })).json();
+    assert.equal(me.answers[161].explanation, 'Fictional backup test');
+    const corrupt = join(dir, 'corrupt.sqlite'); writeFileSync(corrupt, 'not sqlite');
+    await assert.rejects(snapshot(corrupt, join(dir, 'bad-restore.sqlite'), true));
+    assert.equal(existsSync(join(dir, 'bad-restore.sqlite')), false);
+    const retained = join(dir, 'unrelated.sqlite'); writeFileSync(retained, 'keep'); utimesSync(retained, 0, 0);
+    const old = join(dir, 'okaycupid-2020-01-01T00-00-00.000Z.sqlite'); writeFileSync(old, 'old'); utimesSync(old, 0, 0);
+    await scheduledBackup(source, dir, 14);
+    assert.equal(existsSync(retained), true); assert.equal(existsSync(old), false);
+  } finally { await new Promise(resolve => server.close(resolve)); if (restoredServer) await new Promise(resolve => restoredServer.close(resolve)); reopened?.close(); db.close(); rmSync(dir, { recursive: true, force: true }); }
+});

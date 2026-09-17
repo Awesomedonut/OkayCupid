@@ -14,7 +14,7 @@ export function compare(a, b, questions) {
     earnedA += acceptsA ? wx : 0; earnedB += acceptsB ? wy : 0;
     if (wx || wy) meaningful++;
     if (x.private || y.private) { privateOverlap++; continue; }
-    const detail = { id: q.id, topic: q.topic, prompt: q.prompt, yours: q.options[x.answer], theirs: q.options[y.answer], strong: (!acceptsA && wx >= 50) || (!acceptsB && wy >= 50) };
+    const detail = { id: q.id, topic: q.topic, prompt: q.prompt, yours: q.options[x.answer], theirs: q.options[y.answer], yourExplanation: x.explanation || '', theirExplanation: y.explanation || '', provenance: q.provenance, strong: (!acceptsA && wx >= 50) || (!acceptsB && wy >= 50) };
     topics[q.topic] ??= { overlap: 0, aligned: 0 };
     topics[q.topic].overlap++;
     if ((!wx || acceptsA) && (!wy || acceptsB)) { shared.push(detail); topics[q.topic].aligned++; }

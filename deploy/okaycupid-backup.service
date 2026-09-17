@@ -1,0 +1,16 @@
+[Unit]
+Description=Consistent okaycupid SQLite snapshot
+
+[Service]
+Type=oneshot
+User=okaycupid
+Group=okaycupid
+WorkingDirectory=/opt/okaycupid
+EnvironmentFile=/etc/okaycupid/backup.env
+ExecStart=/usr/bin/node scripts/database.js scheduled
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/okaycupid /var/backups/okaycupid

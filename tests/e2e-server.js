@@ -1,8 +1,10 @@
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { mockGoogle } from './mock-google.js';
 import { createApp } from '../server/app.js';
 mkdirSync(resolve('.data'), { recursive: true });
 const dir = mkdtempSync(resolve('.data/e2e-'));
-const { app, db } = createApp({ database: `${dir}/test.sqlite` });
+const provider = await mockGoogle(8800);
+const { app, db } = createApp({ database: `${dir}/test.sqlite`, publicOrigin: 'http://127.0.0.1:8799', googleConfiguration: provider.configuration });
 const server = app.listen(8799, '127.0.0.1');
-for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => server.close(() => { db.close(); rmSync(dir, { recursive: true, force: true }); process.exit(0); }));
+for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => server.close(async () => { await provider.close(); db.close(); rmSync(dir, { recursive: true, force: true }); process.exit(0); }));

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily okaycupid snapshots
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=300
+Unit=okaycupid-backup.service
+
+[Install]
+WantedBy=timers.target

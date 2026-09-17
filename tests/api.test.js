@@ -153,3 +153,38 @@ test('API saves all and none as irrelevant while retaining own answers for rever
     }
   } finally { await s.close(); }
 });
+
+test('historical answers, explanations and durable skip state remain self-owned across restart', async () => {
+  mkdirSync(resolve('.data'), { recursive: true });
+  const dir = mkdtempSync(resolve('.data/question-test-'));
+  let s = await instance(`${dir}/test.sqlite`);
+  try {
+    const alice = await s.request('/register', 'POST', account('Writer'));
+    const bob = await s.request('/register', 'POST', account('Reader'));
+    const id = (await s.request('/me', 'GET', undefined, bob.cookie)).data.id;
+    assert.equal((await s.request('/skipped/161', 'PUT', {})).status, 401);
+    assert.equal((await s.request('/skipped/999', 'PUT', {}, alice.cookie)).status, 404);
+    await s.request('/skipped/161', 'PUT', {}, alice.cookie);
+    await s.request('/answers/162', 'PUT', a(0, { explanation: 'Private travel story', private: true }), alice.cookie);
+    await s.request('/answers/162', 'PUT', a(), bob.cookie);
+    assert.equal((await s.request('/answers/161', 'PUT', a(0, { explanation: 'x'.repeat(1001) }), alice.cookie)).status, 400);
+    await s.close(); s = await instance(`${dir}/test.sqlite`);
+    let me = (await s.request('/me', 'GET', undefined, alice.cookie)).data;
+    assert.deepEqual(me.skipped, [161]);
+    assert.equal(me.answers[162].explanation, 'Private travel story');
+    assert.deepEqual((await s.request('/me', 'GET', undefined, bob.cookie)).data.skipped, []);
+    let comparison = (await s.request(`/people/${id}`, 'GET', undefined, alice.cookie)).data;
+    assert.ok(!JSON.stringify(comparison).includes('Private travel story'));
+    await s.request('/answers/161', 'PUT', a(1, { acceptable: [1], explanation: 'I prefer comedies' }), alice.cookie);
+    await s.request('/answers/161', 'PUT', a(1, { acceptable: [1] }), bob.cookie);
+    me = (await s.request('/me', 'GET', undefined, alice.cookie)).data;
+    assert.deepEqual(me.skipped, []);
+    comparison = (await s.request(`/people/${id}`, 'GET', undefined, alice.cookie)).data;
+    assert.equal(comparison.match.shared[0].yourExplanation, 'I prefer comedies');
+    assert.ok(comparison.match.shared[0].provenance.url.includes('20110209'));
+    await s.request('/skipped/161', 'PUT', {}, alice.cookie);
+    assert.equal((await s.request('/me', 'GET', undefined, alice.cookie)).data.answers[161].answer, 1);
+    await s.request('/skipped/161', 'DELETE', {}, alice.cookie);
+    assert.deepEqual((await s.request('/me', 'GET', undefined, alice.cookie)).data.skipped, []);
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});

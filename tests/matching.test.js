@@ -55,11 +55,12 @@ test('eligibility requires both gender preferences and excludes self', () => {
   assert.equal(eligible(a, a), false);
 });
 test('catalog has 160 distinct original prompts and demo has eight adult candidates', () => {
-  assert.equal(questions.length, 160);
-  assert.equal(new Set(questions.map(q => q.prompt)).size, 160);
-  assert.equal(new Set(questions.map(q => q.id)).size, 160);
+  assert.equal(questions.filter(q => !q.provenance).length, 160);
+  assert.equal(questions.filter(q => q.provenance).length, 3);
+  assert.equal(new Set(questions.map(q => q.prompt)).size, 163);
+  assert.equal(new Set(questions.map(q => q.id)).size, 163);
   assert.equal(topics.length, 8);
-  assert.ok(questions.every(q => q.options.length === 4 && new Set(q.options).size === 4));
+  assert.ok(questions.filter(q => !q.provenance).every(q => q.options.length === 4 && new Set(q.options).size === 4));
   assert.equal(demo.length, 9);
   assert.ok(demo.every(p => p.age >= 18 && p.fictional));
 });

@@ -135,3 +135,50 @@ test('real signup, save and edit, private comparisons, profile, relogin, export 
     expect(await (await page.request.get('/api/me')).json()).toBeNull();
   } finally { await peer.delete('/api/account', { data: { confirm: 'DELETE' } }); await peer.dispose(); }
 });
+
+test('mock Google round trip, adult onboarding, question search, save-next and durable revisit', async ({ page }, info) => {
+  await page.goto('/#signup');
+  await expect(page.getByRole('link', { name: 'Continue with Google' })).toBeVisible();
+  await screenshot(page, 'signup-google', info.project.name);
+  await page.getByRole('link', { name: 'Continue with Google' }).click();
+  await expect(page.getByRole('heading', { name: 'Make it your own.' })).toBeVisible();
+  expect(await (await page.request.get('/api/me')).json()).toBeNull();
+  await page.getByLabel('Name', { exact: true }).fill('Mock Google adult');
+  await page.getByLabel('I confirm I am at least 18 years old.').check();
+  await screenshot(page, 'google-onboarding', info.project.name);
+  await page.getByRole('button', { name: 'Finish joining' }).click();
+  await expect(page.getByRole('heading', { name: 'Your point of view.' })).toBeVisible();
+  try {
+    await page.getByLabel('Search all questions').fill('horror');
+    await expect(page.getByRole('heading', { name: 'Do you like horror movies?' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Historical prompt/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Skip / next' }).click();
+    await page.reload();
+    await page.getByLabel('Search all questions').fill('horror');
+    await page.getByRole('combobox', { name: 'Show', exact: true }).selectOption('skipped');
+    await expect(page.getByRole('heading', { name: 'Do you like horror movies?' })).toBeVisible();
+    await page.getByRole('radio', { name: 'Sometimes', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Yes', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Sometimes', exact: true }).check();
+    await page.getByLabel(/Why this answer/).fill('Fictional explanation: spooky stories with friends.');
+    await page.getByLabel('Keep this answer private').check();
+    await screenshot(page, 'historical-question', info.project.name);
+    await noOverflow(page);
+    await page.getByRole('button', { name: 'Save & next' }).click();
+    await expect(page.getByRole('heading', { name: 'A fresh page.' })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Show', exact: true }).selectOption('answered');
+    await expect(page.getByRole('radio', { name: 'Sometimes', exact: true })).toBeChecked();
+    await expect(page.getByLabel(/Why this answer/)).toHaveValue('Fictional explanation: spooky stories with friends.');
+    await page.getByRole('radio', { name: 'No', exact: true }).check();
+    await page.getByRole('button', { name: 'Save answer', exact: true }).click();
+    await expect(page.getByRole('status')).toBeVisible();
+    await page.getByRole('button', { name: 'Log out' }).click();
+    await page.getByRole('link', { name: 'Log in', exact: true }).click();
+    await page.getByRole('link', { name: 'Continue with Google' }).click();
+    await expect(page.getByRole('heading', { name: 'Your point of view.' })).toBeVisible();
+    await page.getByLabel('Search all questions').fill('horror');
+    await expect(page.getByRole('radio', { name: 'No', exact: true })).toBeChecked();
+    await expect(page.getByLabel('Keep this answer private')).toBeChecked();
+    await noOverflow(page);
+  } finally { await page.request.delete('/api/account', { data: { confirm: 'DELETE' } }).catch(() => {}); }
+});

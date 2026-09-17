@@ -1,6 +1,6 @@
 # Matching in okaycupid
 
-okaycupid is an independent reconstruction of the publicly explained question-based matching idea associated with early OkCupid. It does not use proprietary code, copied questionnaires, member profiles, or OkCupid branding. A match score describes stated preferences, not safety, attraction, relationship success, or a recommendation to date someone.
+okaycupid is an independent reconstruction of the publicly explained question-based matching idea associated with early OkCupid. It does not use proprietary code, a bulk copied questionnaire bank, member profiles, or OkCupid branding. A match score describes stated preferences, not safety, attraction, relationship success, or a recommendation to date someone.
 
 ## Historical sources and limits
 
@@ -59,7 +59,7 @@ Public shared ground means both members accept the other’s answer or assign ze
 
 Real profiles require authentication and mutual gender preference eligibility. A member never appears in their own directory. Eligibility is separate from compatibility; an ineligible profile cannot be retrieved by guessing its ID. The current explicit gender categories are Woman, Man, and Nonbinary, with any nonempty combination accepted as partner preferences. This limited taxonomy is an implementation choice, not a claim of universal coverage.
 
-Private answers participate in the two fractions but never appear in another member’s comparison. If either member marks a question private, its ID, answer labels, prompt, topic contribution, and individual conflict flag are omitted from that comparison. The aggregate overlap and count of private common questions remain visible. Other members’ answer maps, email addresses, password hashes, and sessions are never returned. Self-export includes the member’s own private answers.
+Private answers participate in the two fractions but never appear in another member’s comparison. If either member marks a question private, its ID, answer labels, explanations, prompt, topic contribution, and individual conflict flag are omitted from that comparison. The aggregate overlap and count of private common questions remain visible. Other members’ answer maps, email addresses, password hashes, and sessions are never returned. Self-export includes the member’s own private answers.
 
 Aggregate scores are **not inference-proof**. Changes to a score, especially with little overlap, may indirectly suggest a private preference. okaycupid discloses this before saving private answers. Database operators also control the underlying data; this is not end-to-end encryption.
 
@@ -67,4 +67,23 @@ The demo uses one fictional viewer (Alex) and eight fictional candidates. All ar
 
 ## Deliberate scope choices
 
-All 160 questions, biographies, typographic avatars, topic labels, thresholds, and interface copy are original. No photos or profiles are scraped. The UI offers lists and comparisons, not swiping. No hidden engagement ranking, message system, identity verification, or moderation service is implemented. Age 18+ is self-attested and validated on the server; it is not verified against identity documents. These choices keep the app inspectable and self-hostable without suggesting production moderation readiness.
+The 160 baseline questions, biographies, typographic avatars, topic labels, thresholds, and interface copy are original. No photos or profiles are scraped. The UI offers lists and comparisons, not swiping. No hidden engagement ranking, message system, identity verification, or moderation service is implemented. Age 18+ is self-attested and validated on the server; it is not verified against identity documents. These choices keep the app inspectable and self-hostable without suggesting production moderation readiness.
+
+
+## Researched questionnaire subset and answering loop
+
+[Christian Rudder, “The Best Questions For A First Date,” OkTrends, February 8, 2011](https://web.archive.org/web/20110209230710/http://blog.okcupid.com/index.php/the-best-questions-for-first-dates/) was retrieved September 17, 2026 from the February 9, 2011 archive. The article explicitly identifies its input as OkCupid match questions, prints the three prompts below in its long-term-potential section, and describes a checkbox to keep an answer private. This primary source establishes these prompts' public use by that date; it does not establish the complete original bank or exact answer-option sets. Its statistical relationship claims are not adopted as predictions or added scoring weights here.
+
+| ID | Publicly documented prompt | Implementation |
+| --- | --- | --- |
+| 161 | Do you like horror movies? | Yes / No / Sometimes |
+| 162 | Have you ever traveled around another country alone? | Yes / No |
+| 163 | Wouldn't it be fun to chuck it all and go live on a sailboat? | Yes / No / Maybe for a while |
+
+These are a modest three-prompt historical quotation subset, visibly distinguished in the questionnaire and comparisons. **All listed answer choices are adapted for okaycupid**, not claimed historical transcriptions. Source wording remains the original authors' work. IDs 1–160 and their existing four-option sets are preserved. No private profiles, user answer dataset, or bulk question corpus is imported. Actual remote web searches were attempted; the Firecrawl keyless tier was rate-limited and a Bing search gave weak results. The verified archive, rather than search snippets, supports this subset. Raw search responses remain outside the repository.
+
+The archived 2014 official help and Rudder's 2013 explanation independently corroborate the three-part answering model; the 2011 article supports answer privacy. They do not verify every old navigation control. Search, answered/unanswered/skipped views, durable revisit markers, unrestricted answer editing, save-and-next, and optional 1000-character explanations are explicitly **okaycupid usability choices**, not claims of exact historical UI reproduction. Explanations are plain text and follow the answer's privacy setting. They do not affect scoring; a comparison shows them only when both answers are public. Skip markers have no matching weight, survive restart, and never erase an existing saved answer. Saving removes that question's skip marker.
+
+## Identity documentation sources
+
+Google's official [OpenID Connect guide](https://developers.google.com/identity/openid-connect/openid-connect) and [OAuth 2.0 web-server guide](https://developers.google.com/identity/protocols/oauth2/web-server), retrieved September 17, 2026, document server-side code exchange, anti-forgery state, nonce, exact redirect URI registration, ID-token signature/issuer/audience/expiry validation, `email_verified`, and use of `sub` as the stable identity rather than email. These are the basis for Google integration; PKCE and explicit linking provide additional protections. See [deployment documentation](deployment.md) for configuration and the boundary between mocked verification and a future real Google login.

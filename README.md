@@ -2,11 +2,11 @@
 
 A self-hostable, question-based way to explore compatibility. Answer what matters, choose the answers you accept in a partner, and look at both shared ground and differences. No swiping, external images, paid services, or sensitive-answer analytics.
 
-okaycupid includes 160 original questions across eight topics, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
+okaycupid includes 160 original questions across eight topics plus three sourced historical prompts with adapted choices, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
 
 ## Run locally
 
-Requires Node.js **22.13 or newer** with `node:sqlite` and npm. Node 22 may print an experimental SQLite warning. The app uses JavaScript modules, React, Vite, Express, and Node’s SQLite and crypto APIs; there is no external database service.
+Requires Node.js **22.16 or newer** with `node:sqlite` and npm. Node 22 may print an experimental SQLite warning. The app uses JavaScript modules, React, Vite, Express, and Node’s SQLite and crypto APIs; there is no external database service.
 
 ```sh
 npm ci
@@ -21,6 +21,8 @@ Open **http://127.0.0.1:8788**. The default bind address is loopback. The demo i
 | `HOST` | `127.0.0.1` | HTTP bind address |
 | `PORT` | `8788` | HTTP port |
 | `DATABASE_PATH` | `.data/kindred.sqlite` | Persistent database path |
+| `PUBLIC_ORIGIN` | unset | Canonical HTTPS origin for Google callbacks and origin checks |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | unset | Optional server-only Google OAuth client configuration |
 | `COOKIE_SECURE` | `false` | Set `true` when serving through HTTPS |
 
 Run from the repository root so static assets resolve correctly. `npm start` serves the built frontend and API in one process. Keep the same database path across restarts. The database directory is created with owner-only permissions and the database file is set to mode 0600. Existing parent directory permissions remain the operator’s responsibility.
@@ -31,7 +33,7 @@ For frontend development, run `npm start` in one terminal and `npm run dev` in a
 
 1. Explore the fictional community as Alex, or register an adult account with a password of at least 12 characters.
 2. In Questions, select your answer, all acceptable partner answers, and importance. “No preference,” all acceptable options, or none sets zero directional weight while preserving your own answer. Save, edit, skip, remove, or mark an answer private.
-3. Navigate topics or filter answered/unanswered questions. Saving is explicit; skipping does not erase a saved answer. Reloading retains saved answers.
+3. Navigate topics or search across all questions or filter answered/unanswered/skipped questions. Saving is explicit; skipping does not erase a saved answer. Reloading retains saved answers, optional explanations, and skip/revisit markers. Save & next advances after saving; saving a skipped question clears its revisit marker.
 4. Discover eligible people. Search by name, biography, or interests; filter city, age band, compatibility, and shared topics. Sort by compatibility, overlap, or name.
 5. Open a comparison to see both directional satisfaction fractions, overlap, shared answers, and important differences. Private answer details are excluded.
 6. Open your name in the header to edit your profile, export your own data as JSON, or permanently delete your account from the active database.
@@ -49,7 +51,7 @@ npm run test:e2e
 
 The unit/API suite tests asymmetric weights, the historical 1/N adjustment at 1/2/50/100 overlaps, zero/unknown scores, all/none acceptable options, no preference, privacy in both directions, eligibility, self-only writes, invalid inputs, password storage, opaque sessions, request origin protections, authentication rate limits, logout, export, deletion, and reopening SQLite with saved answers and sessions.
 
-Playwright runs four journeys using one worker: demo and real-account flows at desktop and 390-pixel mobile widths. It launches an isolated server on loopback **8799** using a temporary database beneath ignored `.data/`; stop any unrelated service occupying that port before running. It never uses or resets the app’s normal database. Tests cover registration, saving/editing, private comparisons, visible conflicts, filters, profile editing, login/logout, export, deletion, and horizontal overflow. Set `PLAYWRIGHT_BROWSERS_PATH` if the browser cache is in a custom location. Set `EVIDENCE_DIR` to an existing directory outside the repository to save fictional-demo screenshots and browser test output there. Without it, screenshots are not saved and test output uses ignored `test-results/`.
+Playwright runs six journeys using one worker: demo, password-account, and mock-Google flows at desktop and 390-pixel mobile widths. It launches an isolated server on loopback **8799** using a temporary database beneath ignored `.data/`; stop any unrelated service occupying that port before running. A separate local mock OIDC provider runs on loopback port 8800. It never uses or resets the app’s normal database. Tests cover registration, saving/editing, private comparisons, visible conflicts, filters, profile editing, login/logout, export, deletion, and horizontal overflow. Set `PLAYWRIGHT_BROWSERS_PATH` if the browser cache is in a custom location. Set `EVIDENCE_DIR` to an existing directory outside the repository to save fictional-demo screenshots and browser test output there. Without it, screenshots are not saved and test output uses ignored `test-results/`.
 
 GitHub Actions installs the lockfile dependencies, builds, runs API/unit tests, and runs the Chromium journeys. Browser binaries and system dependencies must be available on the host; CI installs them explicitly.
 
@@ -59,11 +61,11 @@ Passwords use Node/OpenSSL scrypt with a random 128-bit salt, N=32768, r=8, p=3,
 
 Mutations require JSON and reject foreign Origin headers and cross-site Fetch Metadata. Cross-origin access is not enabled. Authentication is limited to 25 attempts per IP per 15 minutes in memory; these counters reset on restart. The server does not trust forwarded IP headers. An HTTPS reverse proxy must preserve Host and Origin, and `COOKIE_SECURE=true` should be set. Proxy traffic shares its IP rate-limit bucket unless the architecture is deliberately revised. The default is intended for loopback inspection; this repository does not deploy a public network service.
 
-Account age is self-attested. There is no email verification, password recovery, messaging, blocking/reporting, identity verification, or moderation team. A lost password cannot be reset through the app. This is not a claim of production moderation readiness. The directory currently loads candidates and their answers into memory for scoring, suitable for small self-hosted communities rather than large-scale public service. Use one app process per database.
+Account age is self-attested. Password accounts do not verify email; Google accounts require Google-verified email. There is no password recovery, messaging, blocking/reporting, identity verification, or moderation team. A lost password cannot be reset through the app. This is not a claim of production moderation readiness. The directory currently loads candidates and their answers into memory for scoring, suitable for small self-hosted communities rather than large-scale public service. Use one app process per database.
 
 Private answers affect aggregate scores and can yield indirect clues; they are not end-to-end encrypted. Operators control the database. Export files include sensitive own answers and should be kept private. Do not put databases, exports, logs, credentials, browser artifacts, or private screenshots in Git. The app sends no answer telemetry and loads no third-party runtime assets.
 
-For backups, stop the app before copying the SQLite database, or use a SQLite-aware online backup tool that handles WAL files. Account deletion removes active rows and sessions; it does not promise secure erasure of disk blocks or operator backup copies. Set a backup retention policy appropriate to your users. No automatic backup or retention system is supplied.
+Use `npm run backup -- SNAPSHOT_PATH` for a consistent online SQLite snapshot and `npm run restore -- SNAPSHOT_PATH NEW_DATABASE_PATH` for an integrity-checked restore to a new path. Scheduled snapshot/retention templates are included. Same-disk snapshots cannot survive VM loss: encrypted off-VM copies and restore drills require operator configuration. See [deployment, Google setup, backup and restore](docs/deployment.md). No public deployment or external storage is provisioned. Live Google login awaits operator client/domain configuration; automated Google verification uses a local mock provider.
 
 ## License
 

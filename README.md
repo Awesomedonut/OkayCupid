@@ -1,8 +1,8 @@
-# Kindred
+# okaycupid
 
 A self-hostable, question-based way to explore compatibility. Answer what matters, choose the answers you accept in a partner, and look at both shared ground and differences. No swiping, external images, paid services, or sensitive-answer analytics.
 
-Kindred includes 160 original questions across eight topics, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cream, plum, and persimmon interface works on desktop and narrow screens.
+okaycupid includes 160 original questions across eight topics, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
 
 ## Run locally
 
@@ -67,4 +67,4 @@ For backups, stop the app before copying the SQLite database, or use a SQLite-aw
 
 ## License
 
-[MIT](LICENSE). Kindred is independent of OkCupid and TED. External historical sources remain their authors’ works.
+[MIT](LICENSE). okaycupid is independent of OkCupid and TED. External historical sources remain their authors’ works.

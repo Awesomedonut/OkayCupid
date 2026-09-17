@@ -147,7 +147,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     if (!row || !eligible(viewer, profile(row))) throw fail(404, 'Person not found or preferences do not align.');
     res.json({ person: profile(row), match: compare(getAnswers(req.member.id), getAnswers(row.id), questions) });
   });
-  app.get('/api/export', required, (req, res) => res.attachment('kindred-your-data.json').json({ profile: { ...profile(req.member), email: req.member.email }, answers: getAnswers(req.member.id), questions, exportedAt: new Date().toISOString() }));
+  app.get('/api/export', required, (req, res) => res.attachment('okaycupid-your-data.json').json({ profile: { ...profile(req.member), email: req.member.email }, answers: getAnswers(req.member.id), questions, exportedAt: new Date().toISOString() }));
   app.delete('/api/account', required, (req, res) => {
     if (req.body.confirm !== 'DELETE') throw fail(400, 'Type DELETE to confirm.');
     db.prepare('DELETE FROM users WHERE id = ?').run(req.member.id);

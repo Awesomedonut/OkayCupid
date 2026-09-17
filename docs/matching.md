@@ -1,6 +1,6 @@
-# Matching in Kindred
+# Matching in okaycupid
 
-Kindred is an independent reconstruction of the publicly explained question-based matching idea associated with early OkCupid. It does not use proprietary code, copied questionnaires, member profiles, or OkCupid branding. A match score describes stated preferences, not safety, attraction, relationship success, or a recommendation to date someone.
+okaycupid is an independent reconstruction of the publicly explained question-based matching idea associated with early OkCupid. It does not use proprietary code, copied questionnaires, member profiles, or OkCupid branding. A match score describes stated preferences, not safety, attraction, relationship success, or a recommendation to date someone.
 
 ## Historical sources and limits
 
@@ -9,7 +9,7 @@ Kindred is an independent reconstruction of the publicly explained question-base
 3. **[OkCupid, “Matching,” Wikipedia](https://en.wikipedia.org/wiki/OkCupid#Matching).** Retrieved September 17, 2026. This secondary description corroborates own answers, acceptable partner answers, importance, and hidden versus visible answers. It is context, not evidence for an exact historical implementation.
 4. **[Public recollection by @itsaboutawhale](https://x.com/itsaboutawhale/status/2100317804750569735), September 16, 2026.** The project’s reference describes answering over 100 questions about values, interests, fears, philosophy, and lifestyle, and meeting a spouse with a displayed 98% match. This is a personal recollection and the product motivation. It does not establish the underlying formula or an outcome guarantee.
 
-The TED transcript has an imprecise “nth root” passage and mentions a small-sample correction without specifying it. The archived official help explicitly specifies the square root and subtraction of 1/N. Kindred follows that technical explanation. The source calls this a “margin of error” and makes statistical-validity claims; Kindred treats it as an **uncalibrated historical heuristic**, not a validated confidence interval or relationship-success probability. The retrieved sources do not establish every ranking policy or the chronology of algorithm changes.
+The TED transcript has an imprecise “nth root” passage and mentions a small-sample correction without specifying it. The archived official help explicitly specifies the square root and subtraction of 1/N. okaycupid follows that technical explanation. The source calls this a “margin of error” and makes statistical-validity claims; okaycupid treats it as an **uncalibrated historical heuristic**, not a validated confidence interval or relationship-success probability. The retrieved sources do not establish every ranking policy or the chronology of algorithm changes.
 
 ## Inputs and calculation
 
@@ -19,7 +19,7 @@ Each original question has four options. A member saves:
 - Zero or more acceptable partner options, which need not include their own answer.
 - Importance: irrelevant **0**, a little **1**, somewhat **10**, very **50**, essential **250**.
 - Whether the answer is private.
-- An explicit no-preference flag. Kindred normalizes this to all partner options accepted and zero importance.
+- An explicit no-preference flag. okaycupid normalizes this to all partner options accepted and zero importance.
 
 Selecting all or none of the acceptable options gives zero effective weight in that direction, just like explicit no preference. The own answer remains available to satisfy or disappoint the other member. The API stores zero importance for these choices; the matcher also applies the rule to previously saved answers.
 
@@ -43,7 +43,7 @@ Perfect raw compatibility with 1, 2, 50, or 100 common answers gives published s
 
 ## Overlap, topics, and conflict
 
-Kindred reports both total common questions and meaningful common questions (at least one member gives nonzero weight). Descriptive overlap labels are original design choices:
+okaycupid reports both total common questions and meaningful common questions (at least one member gives nonzero weight). Descriptive overlap labels are original design choices:
 
 | Meaningful common questions | Label |
 | --- | --- |
@@ -61,7 +61,7 @@ Real profiles require authentication and mutual gender preference eligibility. A
 
 Private answers participate in the two fractions but never appear in another member’s comparison. If either member marks a question private, its ID, answer labels, prompt, topic contribution, and individual conflict flag are omitted from that comparison. The aggregate overlap and count of private common questions remain visible. Other members’ answer maps, email addresses, password hashes, and sessions are never returned. Self-export includes the member’s own private answers.
 
-Aggregate scores are **not inference-proof**. Changes to a score, especially with little overlap, may indirectly suggest a private preference. Kindred discloses this before saving private answers. Database operators also control the underlying data; this is not end-to-end encryption.
+Aggregate scores are **not inference-proof**. Changes to a score, especially with little overlap, may indirectly suggest a private preference. okaycupid discloses this before saving private answers. Database operators also control the underlying data; this is not end-to-end encryption.
 
 The demo uses one fictional viewer (Alex) and eight fictional candidates. All are adults with invented profiles and answers. The demo is read-only, available without an account, and isolated from the persistent real-member directory. Real users start with no answers and no manufactured real matches.
 

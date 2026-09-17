@@ -6,7 +6,7 @@ test('fictional exploration, filtering, question navigation and comparison', asy
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Someone who gets your why.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Big questions. Your kind of people.' })).toBeVisible();
   await screenshot(page, 'home', info.project.name);
   await noOverflow(page);
   await page.getByRole('button', { name: 'Explore the demo' }).click();
@@ -123,7 +123,7 @@ test('real signup, save and edit, private comparisons, profile, relogin, export 
     const downloadEvent = page.waitForEvent('download');
     await page.getByRole('link', { name: 'Export my data' }).click();
     const download = await downloadEvent;
-    expect(download.suggestedFilename()).toBe('kindred-your-data.json');
+    expect(download.suggestedFilename()).toBe('okaycupid-your-data.json');
     const exported = await page.request.get('/api/export');
     expect(exported.headers()['content-disposition']).toContain('attachment');
     expect((await exported.json()).answers['2'].noPreference).toBe(true);

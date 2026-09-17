@@ -10,7 +10,8 @@ async function fixture() {
   const origin = `http://127.0.0.1:${server.address().port}`;
   const request = async (path, options = {}) => fetch(`${origin}${path}`, { redirect: 'manual', ...options });
   const begin = async (session = '', link = false) => {
-    const start = await request(`/api/auth/google/start${link ? '?link=1' : ''}`, { headers: { cookie: session } });
+    const member = link ? await (await request('/api/me', { headers: { cookie: session } })).json() : null;
+    const start = await request(`/api/auth/google/start${link ? `?link=1&member=${member.mutationContext}` : ''}`, { headers: { cookie: session } });
     const browser = start.headers.getSetCookie()[0].split(';')[0];
     const authorize = await fetch(start.headers.get('location'), { redirect: 'manual' });
     const callback = new URL(authorize.headers.get('location'));
@@ -62,6 +63,9 @@ test('mock Google onboarding, stable identity, collision protection and authenti
     assert.match((await f.finish(await f.begin())).headers.get('location'), /collision/);
     const registration = await f.post('/api/register', { ...profile, email: 'password@example.test', password: 'long-password-for-tests' });
     const passwordSession = registration.headers.getSetCookie()[0].split(';')[0];
+    const staleStart = await f.request('/api/auth/google/start?link=1&member=wrong', { headers: { cookie: passwordSession } });
+    assert.match(staleStart.headers.get('location'), /signin/);
+    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM oidc_transactions').get().n, 0);
     f.provider.setBehavior({ sub: 'password-subject', email: 'password@example.test' });
     assert.match((await f.finish(await f.begin())).headers.get('location'), /collision/);
     assert.match((await f.finish({ ...await f.begin(passwordSession, true), session: '' })).headers.get('location'), /expired/);
@@ -69,7 +73,7 @@ test('mock Google onboarding, stable identity, collision protection and authenti
     assert.equal((await f.post('/api/login', { email: 'password@example.test', password: 'long-password-for-tests' })).status, 200);
     f.provider.setBehavior({ sub: 'mock-subject' });
     assert.match((await f.finish(await f.begin(passwordSession, true))).headers.get('location'), /collision/);
-    const deleted = await f.request('/api/account', { method: 'DELETE', headers: { cookie: session, 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: 'DELETE' }) });
+    const deleted = await f.request('/api/account', { method: 'DELETE', headers: { cookie: session, 'X-Expected-Member': (await (await f.request('/api/me', { headers: { cookie: session } })).json()).mutationContext, 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm: 'DELETE' }) });
     assert.equal(deleted.status, 200);
     assert.equal(f.db.prepare("SELECT COUNT(*) n FROM identities WHERE subject = 'mock-subject'").get().n, 0);
   } finally { await f.close(); }

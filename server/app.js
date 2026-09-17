@@ -1,4 +1,5 @@
 import express from 'express';
+import { isIP } from 'node:net';
 import { googleAuth } from './google.js';
 import { DatabaseSync } from 'node:sqlite';
 import { scrypt, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
@@ -12,7 +13,7 @@ const derive = promisify(scrypt);
 const hash = value => createHash('sha256').update(value).digest('hex');
 const clean = (value, max, min = 0) => typeof value === 'string' && value.trim().length >= min && value.trim().length <= max;
 const fail = (status, message) => Object.assign(new Error(message), { status });
-export function createApp({ database = process.env.DATABASE_PATH || '.data/kindred.sqlite', secureCookies = process.env.COOKIE_SECURE === 'true', publicOrigin = process.env.PUBLIC_ORIGIN, googleConfiguration } = {}) {
+export function createApp({ database = process.env.DATABASE_PATH || '.data/kindred.sqlite', secureCookies = process.env.COOKIE_SECURE === 'true', publicOrigin = process.env.PUBLIC_ORIGIN, googleConfiguration, trustedProxies = process.env.TRUSTED_PROXIES || '' } = {}) {
   if (publicOrigin) {
     const origin = new URL(publicOrigin);
     if (origin.origin !== publicOrigin || (origin.protocol !== 'https:' && !(origin.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)))) throw Error('PUBLIC_ORIGIN must be a canonical HTTPS origin or loopback HTTP origin.');
@@ -36,6 +37,13 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     finally { activeHashes--; }
   };
   const app = express();
+  const proxies = trustedProxies ? trustedProxies.split(',').map(value => value.trim()) : [];
+  for (const proxy of proxies) {
+    const [address, prefix, extra] = proxy.split('/');
+    const version = isIP(address);
+    if (!version || extra !== undefined || (prefix !== undefined && (!/^\d+$/.test(prefix) || Number(prefix) > (version === 4 ? 32 : 128)))) throw Error('TRUSTED_PROXIES must contain explicit IP addresses or CIDR subnets.');
+  }
+  app.set('trust proxy', proxies.length ? proxies : false);
   app.disable('x-powered-by');
   app.use((req, res, next) => {
     res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" });
@@ -65,9 +73,14 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
   app.use('/api', (req, res, next) => {
     const token = tokenFrom(req);
     if (token) req.member = db.prepare('SELECT users.* FROM sessions JOIN users ON users.id = sessions.user_id WHERE token = ? AND expires > ?').get(hash(token), Date.now());
+    if (req.member) req.memberContext = `${req.member.id}:${hash(token)}`;
     next();
   });
-  const required = (req, res, next) => req.member ? next() : next(fail(401, 'Please sign in to continue.'));
+  const required = (req, res, next) => {
+    if (!req.member) return next(fail(401, 'Please sign in to continue.'));
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.get('X-Expected-Member') !== req.memberContext) return next(fail(409, 'Your signed-in account changed. Please reload before continuing.'));
+    next();
+  };
   const cookieOptions = { httpOnly: true, sameSite: 'lax', secure: secureCookies, path: '/' };
   const session = (res, id, req) => {
     const old = req && tokenFrom(req);
@@ -92,7 +105,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
   };
   googleAuth({ app, db, session, required, limit, validateProfile, cookieOptions, publicOrigin, configuration: googleConfiguration });
   app.get('/api/questions', (req, res) => res.json({ questions, topics, retiredQuestionIds, activeQuestionIds }));
-  app.get('/api/me', (req, res) => res.json(req.member ? { ...profile(req.member), email: req.member.email, answers: getAnswers(req.member.id), skipped: getSkipped(req.member.id) } : null));
+  app.get('/api/me', (req, res) => res.json(req.member ? { ...profile(req.member), mutationContext: req.memberContext, email: req.member.email, answers: getAnswers(req.member.id), skipped: getSkipped(req.member.id) } : null));
   app.post('/api/register', limit, async (req, res) => {
     const b = req.body;
     validateProfile(b);
@@ -117,7 +130,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     if (old) db.prepare('DELETE FROM sessions WHERE token = ?').run(hash(old));
     session(res, row.id); res.json({ ok: true });
   });
-  app.post('/api/logout', (req, res) => {
+  app.post('/api/logout', required, (req, res) => {
     const token = tokenFrom(req);
     if (token) db.prepare('DELETE FROM sessions WHERE token = ?').run(hash(token));
     res.clearCookie('kindred', cookieOptions).json({ ok: true });

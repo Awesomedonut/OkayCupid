@@ -5,8 +5,8 @@ import { resolve, join } from 'node:path';
 import { createApp } from '../server/app.js';
 import { snapshot, scheduledBackup } from '../scripts/database.js';
 test('WAL snapshot and safe restore preserve accounts, answers, skips and identities', async () => {
-  mkdirSync('.data', { recursive: true });
-  const dir = mkdtempSync(resolve('.data/backup-test-'));
+  mkdirSync(process.env.TEST_DATA_ROOT || '.test-data', { recursive: true });
+  const dir = mkdtempSync(resolve(process.env.TEST_DATA_ROOT || '.test-data', 'backup-test-'));
   const source = join(dir, 'source.sqlite'), copy = join(dir, 'copy.sqlite'), restored = join(dir, 'restored.sqlite');
   const { app, db } = createApp({ database: source });
   const server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });

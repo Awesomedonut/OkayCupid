@@ -25,6 +25,7 @@ export function googleAuth({ app, db, session, required, limit, validateProfile,
   app.get('/api/auth/google/start', limit, async (req, res) => {
     if (!enabled) return problem(res, 'unconfigured');
     if (req.query.link === '1' && !req.member) return problem(res, 'signin');
+    if (req.query.link === '1' && req.query.member !== req.memberContext) return problem(res, 'signin');
     cleanup();
     const state = random(), browser = random(), nonce = random(), verifier = oidc.randomPKCECodeVerifier();
     try {

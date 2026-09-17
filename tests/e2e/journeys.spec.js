@@ -48,7 +48,8 @@ test('real signup, save and edit, private comparisons, profile, relogin, export 
   const peer = await playwright.request.newContext({ baseURL: 'http://127.0.0.1:8799' });
   const peerResult = await peer.post('/api/register', { data: { name: 'Avery', email: `peer-${email}`, password: 'peer-password-for-tests', age: 33, adult: true, gender: 'Nonbinary', desired: ['Nonbinary'], city: 'Testville', bio: 'A fictional test member.', interests: 'Books' } });
   expect(peerResult.status()).toBe(201);
-  await peer.put('/api/answers/167', { data: { answer: 1, acceptable: [0], importance: 250, private: false, noPreference: false } });
+  const peerMember = await (await peer.get('/api/me')).json();
+  await peer.put('/api/answers/167', { headers: { 'X-Expected-Member': peerMember.mutationContext }, data: { answer: 1, acceptable: [0], importance: 250, private: false, noPreference: false } });
   try {
     await page.goto('/#signup');
     await page.getByLabel('Email', { exact: true }).fill(email);
@@ -139,7 +140,7 @@ test('real signup, save and edit, private comparisons, profile, relogin, export 
     await page.getByRole('button', { name: 'Delete my account' }).click();
     await expect(page.getByRole('status')).toContainText('have been deleted');
     expect(await (await page.request.get('/api/me')).json()).toBeNull();
-  } finally { await peer.delete('/api/account', { data: { confirm: 'DELETE' } }); await peer.dispose(); }
+  } finally { await peer.delete('/api/account', { headers: { 'X-Expected-Member': peerMember.mutationContext }, data: { confirm: 'DELETE' } }); await peer.dispose(); }
 });
 
 test('mock Google round trip, adult onboarding, question search, save-next and durable revisit', async ({ page }, info) => {
@@ -207,5 +208,58 @@ test('mock Google round trip, adult onboarding, question search, save-next and d
     await expect(page.getByRole('radio', { name: 'No', exact: true })).toBeChecked();
     await expect(page.getByLabel('Keep this answer private')).toBeChecked();
     await noOverflow(page);
-  } finally { await page.request.delete('/api/account', { data: { confirm: 'DELETE' } }).catch(() => {}); }
+  } finally { await page.request.delete('/api/account', { headers: { 'X-Expected-Member': (await (await page.request.get('/api/me')).json())?.mutationContext }, data: { confirm: 'DELETE' } }).catch(() => {}); }
+});
+
+test('drafts survive navigation and stale tabs cannot save into another account', async ({ page }, info) => {
+  const profile = name => ({ name, email: `${name}-${info.project.name}-${Date.now()}@example.test`, password: 'fictional-draft-password', age: 30, adult: true, gender: 'Nonbinary', desired: ['Nonbinary'], city: '', bio: '', interests: '' });
+  const ownerProfile = profile('DraftOwner');
+  await page.request.post('/api/register', { data: ownerProfile });
+  await page.goto('/#questions');
+  await page.getByRole('radio', { name: 'Liberal.', exact: true }).check();
+  await page.getByLabel(/Why this answer/).fill('Fictional private draft stays with its author');
+  await page.getByLabel('Keep this answer private').check();
+  await page.getByRole('link', { name: 'How it works', exact: true }).click();
+  await page.getByRole('link', { name: 'Questions', exact: true }).click();
+  await expect(page.getByLabel(/Why this answer/)).toHaveValue('Fictional private draft stays with its author');
+  await expect(page.getByRole('radio', { name: 'Liberal.', exact: true })).toBeChecked();
+  await page.getByLabel('Search questions').fill('dinosaurs');
+  await page.getByLabel('Search questions').fill('');
+  await expect(page.getByLabel(/Why this answer/)).toHaveValue('Fictional private draft stays with its author');
+  await screenshot(page, 'preserved-draft', info.project.name);
+  const owner = await (await page.request.get('/api/me')).json();
+  let releaseOldResponse;
+  let markCaptured;
+  const captured = new Promise(resolve => { markCaptured = resolve; });
+  let hold = true;
+  await page.route('**/api/me', async route => {
+    if (!hold) return route.continue();
+    hold = false;
+    const response = await route.fetch();
+    markCaptured();
+    await new Promise(resolve => { releaseOldResponse = resolve; });
+    await route.fulfill({ response });
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await captured;
+  const otherTab = await page.context().newPage();
+  await otherTab.request.post('/api/logout', { headers: { 'X-Expected-Member': owner.mutationContext }, data: {} });
+  await otherTab.request.post('/api/register', { data: profile('OtherMember') });
+  const rejected = page.waitForResponse(response => response.url().endsWith('/api/answers/167') && response.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Save answer', exact: true }).click();
+  expect((await rejected).status()).toBe(409);
+  await expect(page.getByLabel(/Why this answer/)).toHaveValue('');
+  const current = await (await page.request.get('/api/me')).json();
+  expect(current.name).toBe('OtherMember');
+  expect(current.answers).toEqual({});
+  releaseOldResponse();
+  await expect(page.locator('.account-nav a')).toContainText('OtherMember');
+  await expect(page.getByLabel(/Why this answer/)).toHaveValue('');
+  await screenshot(page, 'stale-draft-rejected', info.project.name);
+  const storage = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]));
+  expect(storage).not.toContain('Fictional private draft');
+  await page.request.delete('/api/account', { headers: { 'X-Expected-Member': current.mutationContext }, data: { confirm: 'DELETE' } });
+  await page.request.post('/api/login', { data: { email: ownerProfile.email, password: ownerProfile.password } });
+  const returnedOwner = await (await page.request.get('/api/me')).json();
+  expect((await page.request.delete('/api/account', { headers: { 'X-Expected-Member': returnedOwner.mutationContext }, data: { confirm: 'DELETE' } })).status()).toBe(200);
 });

@@ -10,7 +10,8 @@ async function instance(database = ':memory:') {
   await new Promise(resolve => server.once('listening', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = async (path, method = 'GET', body, cookie = '', headers = {}) => {
-    const res = await fetch(`${base}/api${path}`, { method, headers: { 'Content-Type': 'application/json', Cookie: cookie, ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    const member = cookie ? await (await fetch(`${base}/api/me`, { headers: { Cookie: cookie } })).json() : null;
+    const res = await fetch(`${base}/api${path}`, { method, headers: { 'Content-Type': 'application/json', Cookie: cookie, ...(member ? { 'X-Expected-Member': member.mutationContext } : {}), ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     return { status: res.status, headers: res.headers, cookie: res.headers.get('set-cookie')?.split(';')[0], data: await res.json() };
   };
   return { request, db, close: async () => { await new Promise(resolve => server.close(resolve)); db.close(); } };
@@ -99,8 +100,8 @@ test('accounts, ownership, eligibility, privacy, export, logout and deletion wor
   } finally { await s.close(); }
 });
 test('answers and opaque sessions survive closing and reopening the SQLite server', async () => {
-  mkdirSync(resolve('.data'), { recursive: true });
-  const dir = mkdtempSync(resolve('.data/persistence-test-'));
+  mkdirSync(resolve(process.env.TEST_DATA_ROOT || '.test-data'), { recursive: true });
+  const dir = mkdtempSync(resolve(process.env.TEST_DATA_ROOT || '.test-data', 'persistence-test-'));
   const database = `${dir}/test.sqlite`;
   let s = await instance(database);
   try {
@@ -155,8 +156,8 @@ test('API saves all and none as irrelevant while retaining own answers for rever
 });
 
 test('historical answers, explanations and durable skip state remain self-owned across restart', async () => {
-  mkdirSync(resolve('.data'), { recursive: true });
-  const dir = mkdtempSync(resolve('.data/question-test-'));
+  mkdirSync(resolve(process.env.TEST_DATA_ROOT || '.test-data'), { recursive: true });
+  const dir = mkdtempSync(resolve(process.env.TEST_DATA_ROOT || '.test-data', 'question-test-'));
   let s = await instance(`${dir}/test.sqlite`);
   try {
     const alice = await s.request('/register', 'POST', account('Writer'));
@@ -190,8 +191,8 @@ test('historical answers, explanations and durable skip state remain self-owned 
 });
 
 test('retired records survive restart and export but cannot affect active matching or progress', async () => {
-  mkdirSync(resolve('.data'), { recursive: true });
-  const dir = mkdtempSync(resolve('.data/retirement-test-'));
+  mkdirSync(resolve(process.env.TEST_DATA_ROOT || '.test-data'), { recursive: true });
+  const dir = mkdtempSync(resolve(process.env.TEST_DATA_ROOT || '.test-data', 'retirement-test-'));
   let s = await instance(`${dir}/test.sqlite`);
   try {
     const alice = await s.request('/register', 'POST', account('Legacy'));
@@ -224,4 +225,55 @@ test('retired records survive restart and export but cannot affect active matchi
     assert.equal(exported.questions.length, 79);
     assert.equal(s.db.prepare('SELECT COUNT(*) n FROM answers').get().n, 8);
   } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('stale or missing member context cannot mutate the cookie account', async () => {
+  const s = await instance();
+  try {
+    const alice = await s.request('/register', 'POST', account('DraftOwner'));
+    const bob = await s.request('/register', 'POST', account('NewMember'));
+    const owner = (await s.request('/me', 'GET', undefined, alice.cookie)).data;
+    const current = (await s.request('/me', 'GET', undefined, bob.cookie)).data;
+    for (const expected of ['', owner.mutationContext]) {
+      for (const [path, method, body] of [
+        ['/answers/167', 'PUT', a(0, { explanation: 'Private old draft' })],
+        ['/answers/167', 'DELETE', {}],
+        ['/skipped/167', 'PUT', {}],
+        ['/skipped/167', 'DELETE', {}],
+        ['/profile', 'PUT', account('Transplanted')],
+        ['/account', 'DELETE', { confirm: 'DELETE' }],
+        ['/logout', 'POST', {}]
+      ]) {
+        const result = await s.request(path, method, body, bob.cookie, { 'X-Expected-Member': expected });
+        assert.equal(result.status, 409, `${method} ${path}`);
+      }
+    }
+    assert.deepEqual((await s.request('/me', 'GET', undefined, bob.cookie)).data, current);
+    assert.equal((await s.request('/answers/167', 'PUT', a(), alice.cookie, { 'X-Expected-Member': current.mutationContext })).status, 409);
+    assert.equal((await s.request('/answers/167', 'PUT', a(), bob.cookie)).status, 200);
+    await s.request('/account', 'DELETE', { confirm: 'DELETE' }, bob.cookie);
+    const replacement = await s.request('/register', 'POST', account('ReusedId'));
+    const replacementMember = (await s.request('/me', 'GET', undefined, replacement.cookie)).data;
+    assert.equal(replacementMember.id, current.id);
+    assert.notEqual(replacementMember.mutationContext, current.mutationContext);
+    assert.equal((await s.request('/answers/167', 'PUT', a(), replacement.cookie, { 'X-Expected-Member': current.mutationContext })).status, 409);
+  } finally { await s.close(); }
+});
+
+test('proxy trust attributes auth limits to the first untrusted address', async () => {
+  for (const trustedProxies of ['', '127.0.0.1/32', '192.0.2.0/24']) {
+    const { app, db } = createApp({ database: ':memory:', trustedProxies });
+    const server = await new Promise(resolve => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
+    const login = forwarded => fetch(`http://127.0.0.1:${server.address().port}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': forwarded }, body: '{}' });
+    try {
+      for (let i = 0; i < 25; i++) assert.equal((await login(`198.51.100.${i + 1}, 203.0.113.4`)).status, 400);
+      const same = await login('192.0.2.99, 203.0.113.4');
+      assert.equal(same.status, 429);
+      assert.ok(Number(same.headers.get('Retry-After')) > 0);
+      assert.equal((await login('203.0.113.5')).status, trustedProxies === '127.0.0.1/32' ? 400 : 429);
+    } finally { await new Promise(resolve => server.close(resolve)); db.close(); }
+  }
+  for (const trustedProxies of ['true', '*', 'loopback', '127.0.0.1/33', '::1/129', '127.0.0.1,', 'not-an-ip']) {
+    assert.throws(() => createApp({ database: ':memory:', trustedProxies }), /TRUSTED_PROXIES/);
+  }
 });

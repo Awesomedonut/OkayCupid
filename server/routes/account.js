@@ -45,6 +45,7 @@ export function accountRoutes({
   app.delete("/api/account", required, (req, res) => {
     if (req.body.confirm !== "DELETE")
       throw fail(400, "Type DELETE to confirm.");
+    db.prepare("DELETE FROM oidc_transactions WHERE user_id = ?").run(req.member.id);
     db.prepare("DELETE FROM users WHERE id = ?").run(req.member.id);
     res.clearCookie("kindred", cookieOptions).json({ ok: true });
   });

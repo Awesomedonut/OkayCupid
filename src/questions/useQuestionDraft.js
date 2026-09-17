@@ -50,7 +50,12 @@ export function useQuestionDraft({
         },
         memberContext,
       );
-      await refresh(memberContext);
+      const member = await refresh(memberContext);
+      const stored = member.answers[question.id];
+      setImportance(stored.importance);
+      setAcceptable(stored.acceptable);
+      setExplanation(stored.explanation);
+      drafts[question.id] = stored;
       setMessage("Answer saved. You can edit it any time.");
       if (e.nativeEvent.submitter?.value === "next") next(true);
     } catch (e) {

@@ -1,13 +1,16 @@
 import React, { useState } from "react";
+import { useUnsavedWarning } from "../hooks/useUnsavedWarning.js";
 import { api } from "../api.js";
 import { ProfileFields } from "../components/ProfileFields.jsx";
 import { GoogleButton } from "../components/GoogleButton.jsx";
-export function Profile({ me, refresh, onDelete }) {
+export function Profile({ me, refresh, onDelete, active }) {
   const [value, setValue] = useState(me),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [confirm, setConfirm] = useState(""),
     [busy, setBusy] = useState(false);
+  const [savedValue, setSavedValue] = useState(me);
+  useUnsavedWarning(() => JSON.stringify(value) !== JSON.stringify(savedValue));
   async function save(e) {
     e.preventDefault();
     setBusy(true);
@@ -15,7 +18,8 @@ export function Profile({ me, refresh, onDelete }) {
     setMessage("");
     try {
       await api("/profile", "PUT", value, me.mutationContext);
-      await refresh();
+      await refresh(me.mutationContext);
+      setSavedValue(value);
       setMessage("Profile saved.");
     } catch (e) {
       setError(e.message);
@@ -36,6 +40,7 @@ export function Profile({ me, refresh, onDelete }) {
       setBusy(false);
     }
   }
+  if (!active) return null;
   return (
     <main className="narrow">
       <p className="eyebrow">YOUR OWN LITTLE CORNER</p>

@@ -97,3 +97,55 @@ test('Google configuration uses canonical origins and secure cookies with a usef
     assert.match(success.headers.get('set-cookie'), /HttpOnly/);
   } finally { await new Promise(resolve => server.close(resolve)); db.close(); }
 });
+
+for (const duringExchange of [false, true]) {
+  test(`pending Google linking rejects deleted and reused accounts (during exchange: ${duringExchange})`, async () => {
+    const f = await fixture();
+    try {
+      const register = async email => {
+        const response = await f.post('/api/register', { ...profile, email, password: 'fictional-password-for-linking' });
+        const session = response.headers.getSetCookie()[0].split(';')[0];
+        const member = await (await f.request('/api/me', { headers: { cookie: session } })).json();
+        return { session, member };
+      };
+      const original = await register('original@example.test');
+      let replacement;
+      const replace = async () => {
+        const removed = await f.request('/api/account', {
+          method: 'DELETE', headers: { cookie: original.session, 'X-Expected-Member': original.member.mutationContext, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: 'DELETE' }),
+        });
+        assert.equal(removed.status, 200);
+        assert.equal(f.db.prepare('SELECT COUNT(*) n FROM oidc_transactions WHERE user_id = ?').get(original.member.id).n, 0);
+        replacement = await register('replacement@example.test');
+        assert.equal(replacement.member.id, original.member.id);
+        assert.notEqual(replacement.member.mutationContext, original.member.mutationContext);
+      };
+      f.provider.setBehavior(duringExchange ? { beforeToken: replace } : {});
+      const tx = await f.begin(original.session, true);
+      if (!duringExchange) await replace();
+      const result = await f.finish({ ...tx, session: duringExchange ? original.session : replacement.session });
+      assert.match(result.headers.get('location'), /expired/);
+      assert.equal(f.db.prepare('SELECT COUNT(*) n FROM identities').get().n, 0);
+      f.provider.setBehavior({});
+      assert.equal((await f.finish(await f.begin())).headers.get('location'), '/#google-onboarding');
+    } finally { await f.close(); }
+  });
+}
+
+test('pending Google link is bound to the initiating session even for the same member', async () => {
+  const f = await fixture();
+  try {
+    const credentials = { email: 'rotation@example.test', password: 'fictional-password-for-linking' };
+    const registered = await f.post('/api/register', { ...profile, ...credentials });
+    const original = registered.headers.getSetCookie()[0].split(';')[0];
+    const legacy = await f.begin(original, true);
+    f.db.prepare('UPDATE oidc_transactions SET member_context = NULL WHERE state = ?').run(legacy.state);
+    assert.match((await f.finish(legacy)).headers.get('location'), /expired/);
+    const tx = await f.begin(original, true);
+    const login = await f.post('/api/login', credentials, original);
+    const replacement = login.headers.getSetCookie()[0].split(';')[0];
+    assert.match((await f.finish({ ...tx, session: replacement })).headers.get('location'), /expired/);
+    assert.equal(f.db.prepare('SELECT COUNT(*) n FROM identities').get().n, 0);
+  } finally { await f.close(); }
+});

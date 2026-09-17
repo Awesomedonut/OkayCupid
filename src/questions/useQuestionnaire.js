@@ -1,6 +1,11 @@
 import { useEffect, useState, useRef } from "react";
+import { useUnsavedWarning } from "../hooks/useUnsavedWarning.js";
+import { normalizeDraft } from "./normalizeDraft.js";
 export function useQuestionnaire(catalog, viewer) {
   const drafts = useRef({});
+  useUnsavedWarning(() => Object.entries(drafts.current).some(([id, draft]) =>
+    JSON.stringify(normalizeDraft(draft)) !== JSON.stringify(normalizeDraft(viewer?.answers?.[id]))
+  ));
   const [topic, setTopic] = useState(catalog.topics[0]),
     [index, setIndex] = useState(0),
     [filter, setFilter] = useState("all"),

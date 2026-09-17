@@ -1,7 +1,14 @@
 import React from "react";
 import { useQuestionnaire } from "../questions/useQuestionnaire.js";
 import { Question } from "../questions/Question.jsx";
-export function Questionnaire({ catalog, viewer, demoMode, refresh, go }) {
+export function QuestionnaireWorkspace({ catalog, member, demoViewer, demoMode, refresh, go }) {
+  const memberState = useQuestionnaire(catalog, member);
+  const demoState = useQuestionnaire(catalog, demoViewer);
+  return <Questionnaire key={demoMode ? "demo" : "member"} catalog={catalog}
+    viewer={demoMode ? demoViewer : member} demoMode={demoMode}
+    state={demoMode ? demoState : memberState} refresh={refresh} go={go} />;
+}
+function Questionnaire({ catalog, viewer, demoMode, refresh, go, state }) {
   const {
     drafts,
     topic,
@@ -19,7 +26,7 @@ export function Questionnaire({ catalog, viewer, demoMode, refresh, go }) {
     list,
     question,
     total,
-  } = useQuestionnaire(catalog, viewer);
+  } = state;
   return (
     <main>
       <div className="page-heading">

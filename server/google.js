@@ -22,6 +22,18 @@ export function googleAuth({
   db.exec(`CREATE TABLE IF NOT EXISTS identities (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, PRIMARY KEY(provider, subject), UNIQUE(provider, user_id));
     CREATE TABLE IF NOT EXISTS oidc_transactions (state TEXT PRIMARY KEY, browser TEXT NOT NULL, verifier TEXT NOT NULL, nonce TEXT NOT NULL, user_id INTEGER, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS oidc_pending (browser TEXT PRIMARY KEY, subject TEXT NOT NULL, email TEXT NOT NULL, expires INTEGER NOT NULL);`);
+  const transactionColumns = db.prepare("PRAGMA table_info(oidc_transactions)").all();
+  if (!transactionColumns.some(column => column.name === "member_context"))
+    db.exec("ALTER TABLE oidc_transactions ADD COLUMN member_context TEXT");
+  function linkSessionIsActive(transaction, req) {
+    if (!transaction.user_id) return true;
+    if (!transaction.member_context || transaction.member_context !== req.memberContext)
+      return false;
+    const sessionDigest = transaction.member_context.split(":")[1];
+    return !!db.prepare(
+      "SELECT 1 FROM sessions WHERE token = ? AND user_id = ? AND expires > ?",
+    ).get(sessionDigest, transaction.user_id, Date.now());
+  }
   const enabled =
     !!configuration ||
     !!(
@@ -94,13 +106,14 @@ export function googleAuth({
         code_challenge_method: "S256",
         prompt: "select_account",
       });
-      db.prepare("INSERT INTO oidc_transactions VALUES (?, ?, ?, ?, ?, ?)").run(
+      db.prepare("INSERT INTO oidc_transactions (state, browser, verifier, nonce, user_id, expires, member_context) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
         state,
         digest(browser),
         verifier,
         nonce,
         req.query.link === "1" ? req.member.id : null,
         Date.now() + 10 * 60000,
+        req.query.link === "1" ? req.memberContext : null,
       );
       res
         .cookie("okaycupid_oidc", browser, {
@@ -122,7 +135,7 @@ export function googleAuth({
       !tx ||
       tx.expires <= Date.now() ||
       tx.browser !== digest(cookie(req)) ||
-      (tx.user_id && tx.user_id !== req.member?.id)
+      !linkSessionIsActive(tx, req)
     )
       return problem(res, "expired");
     try {
@@ -155,6 +168,7 @@ export function googleAuth({
         )
         .get(claims.sub);
       if (tx.user_id) {
+        if (!linkSessionIsActive(tx, req)) return problem(res, "expired");
         if (identity && identity.user_id !== tx.user_id)
           return problem(res, "collision");
         if (!identity)

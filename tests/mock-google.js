@@ -23,6 +23,7 @@ export async function mockGoogle(port = 0) {
   app.post('/token', async (req, res) => {
     const c = codes.get(req.body.code); codes.delete(req.body.code);
     if (!c || req.body.redirect_uri !== c.redirect_uri || createHash('sha256').update(req.body.code_verifier || '').digest('base64url') !== c.code_challenge) return res.status(400).json({ error: 'invalid_grant' });
+    if (c.beforeToken) await c.beforeToken();
     const token = await new SignJWT({ sub: c.sub || 'mock-subject', email: c.email || 'google-adult@example.test', email_verified: c.verified !== false, nonce: c.badNonce ? 'wrong' : c.nonce }).setProtectedHeader({ alg: 'RS256', kid: 'mock-key' }).setIssuer(c.badIssuer ? 'https://wrong.example' : issuer).setAudience(c.badAudience ? 'wrong-client' : 'mock-client').setIssuedAt().setExpirationTime(c.expired ? Math.floor(Date.now() / 1000) - 120 : '5m').sign(c.badSignature ? wrong.privateKey : keys.privateKey);
     res.json({ access_token: 'mock-only-access', token_type: 'Bearer', expires_in: 300, id_token: token });
   });

@@ -9,7 +9,7 @@ import { GoogleOnboarding } from "./pages/GoogleOnboarding.jsx";
 import { Profile } from "./pages/Profile.jsx";
 import { People } from "./pages/People.jsx";
 import { Comparison } from "./pages/Comparison.jsx";
-import { Questionnaire } from "./pages/Questionnaire.jsx";
+import { QuestionnaireWorkspace } from "./pages/Questionnaire.jsx";
 export function App() {
   const [page, setPage] = useState(
     location.hash.slice(1).split("?")[0] || "home",
@@ -183,10 +183,11 @@ export function App() {
             )}
             {
               <div hidden={page !== "questions"}>
-                <Questionnaire
-                  key={`${mode}-${me?.mutationContext ?? "guest"}`}
+                <QuestionnaireWorkspace
+                  key={me?.mutationContext ?? "guest"}
                   catalog={catalog}
-                  viewer={viewer}
+                  member={me}
+                  demoViewer={demo.viewer}
                   demoMode={mode === "demo"}
                   refresh={refresh}
                   go={go}
@@ -208,11 +209,11 @@ export function App() {
                 go={go}
               />
             )}
-            {page === "profile" &&
-              (me ? (
+            {me ? (
                 <Profile
                   key={me.mutationContext}
                   me={me}
+                  active={page === "profile"}
                   refresh={refresh}
                   onDelete={() => {
                     sessionVersion.current++;
@@ -225,8 +226,8 @@ export function App() {
                   }}
                 />
               ) : (
-                <JoinPrompt go={go} />
-              ))}
+                page === "profile" && <JoinPrompt go={go} />
+              )}
             {page === "about" && <About />}
             {![
               "home",

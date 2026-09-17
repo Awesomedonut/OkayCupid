@@ -5,6 +5,6 @@ import { createApp } from '../server/app.js';
 mkdirSync(resolve(process.env.TEST_DATA_ROOT || '.test-data'), { recursive: true });
 const dir = mkdtempSync(resolve(process.env.TEST_DATA_ROOT || '.test-data', 'e2e-'));
 const provider = await mockGoogle(8800);
-const { app, db } = createApp({ database: `${dir}/test.sqlite`, publicOrigin: 'http://127.0.0.1:8799', googleConfiguration: provider.configuration });
+const { app, db } = createApp({ trustedProxies: '127.0.0.1', database: `${dir}/test.sqlite`, publicOrigin: 'http://127.0.0.1:8799', googleConfiguration: provider.configuration });
 const server = app.listen(8799, '127.0.0.1');
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => server.close(async () => { await provider.close(); db.close(); rmSync(dir, { recursive: true, force: true }); process.exit(0); }));

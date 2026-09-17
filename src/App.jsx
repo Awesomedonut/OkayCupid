@@ -185,6 +185,7 @@ export function App() {
               <div hidden={page !== "questions"}>
                 <QuestionnaireWorkspace
                   key={me?.mutationContext ?? "guest"}
+                  active={page === "questions"}
                   catalog={catalog}
                   member={me}
                   demoViewer={demo.viewer}
@@ -196,6 +197,7 @@ export function App() {
             }
             {page === "people" && (
               <People
+                key={`people:${mode === "demo" ? "demo" : me?.mutationContext ?? "guest"}`}
                 viewer={viewer}
                 demoMode={mode === "demo"}
                 demo={demo}
@@ -204,6 +206,7 @@ export function App() {
             )}
             {page.startsWith("person/") && (
               <Comparison
+                key={`${mode === "demo" ? "demo" : me?.mutationContext ?? "guest"}:${page}`}
                 id={page.slice(7)}
                 demoMode={mode === "demo"}
                 go={go}

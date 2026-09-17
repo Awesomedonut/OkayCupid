@@ -1,14 +1,25 @@
 import React from "react";
 import { useQuestionnaire } from "../questions/useQuestionnaire.js";
 import { Question } from "../questions/Question.jsx";
-export function QuestionnaireWorkspace({ catalog, member, demoViewer, demoMode, refresh, go }) {
+export function QuestionnaireWorkspace({
+  catalog, member, demoViewer, demoMode, active, refresh, go,
+}) {
   const memberState = useQuestionnaire(catalog, member);
   const demoState = useQuestionnaire(catalog, demoViewer);
-  return <Questionnaire key={demoMode ? "demo" : "member"} catalog={catalog}
-    viewer={demoMode ? demoViewer : member} demoMode={demoMode}
-    state={demoMode ? demoState : memberState} refresh={refresh} go={go} />;
+  return (
+    <Questionnaire
+      key={demoMode ? "demo" : "member"}
+      catalog={catalog}
+      viewer={demoMode ? demoViewer : member}
+      demoMode={demoMode}
+      active={active}
+      state={demoMode ? demoState : memberState}
+      refresh={refresh}
+      go={go}
+    />
+  );
 }
-function Questionnaire({ catalog, viewer, demoMode, refresh, go, state }) {
+function Questionnaire({ catalog, viewer, demoMode, refresh, go, state, active }) {
   const {
     drafts,
     topic,
@@ -145,7 +156,7 @@ function Questionnaire({ catalog, viewer, demoMode, refresh, go, state }) {
               </select>
             </label>
           </div>
-          {question ? (
+          {question && active ? (
             <Question
               key={`${question.id}-${demoMode}`}
               question={question}
@@ -167,7 +178,7 @@ function Questionnaire({ catalog, viewer, demoMode, refresh, go, state }) {
               }
               previous={() => setIndex((i) => Math.max(0, i - 1))}
             />
-          ) : (
+          ) : !question ? (
             <div className="panel empty">
               <h2>
                 {filter === "unanswered"
@@ -180,7 +191,7 @@ function Questionnaire({ catalog, viewer, demoMode, refresh, go, state }) {
                   : "No answers here yet. Switch to all questions to begin."}
               </p>
             </div>
-          )}
+          ) : null}
         </section>
       </div>
     </main>

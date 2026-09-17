@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { Avatar } from "../components/Avatar.jsx";
 import { JoinPrompt } from "../components/JoinPrompt.jsx";
@@ -12,20 +12,26 @@ export function People({ viewer, demoMode, demo, go }) {
     [minimum, setMinimum] = useState(0),
     [sort, setSort] = useState("match"),
     [topic, setTopic] = useState("");
+  const requestVersion = useRef(0);
   async function load() {
+    const version = ++requestVersion.current;
     setBusy(true);
     setError("");
     try {
-      setPeople(demoMode ? demo.people : viewer ? await api("/people") : []);
+      const result = demoMode ? demo.people : viewer ? await api("/people") : [];
+      if (version === requestVersion.current) setPeople(result);
     } catch (e) {
-      setError(e.message);
+      if (version === requestVersion.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (version === requestVersion.current) setBusy(false);
     }
   }
   useEffect(() => {
     load();
-  }, [demoMode, viewer?.id]);
+    return () => {
+      requestVersion.current++;
+    };
+  }, [demoMode, viewer?.mutationContext]);
   if (!viewer) return <JoinPrompt go={go} />;
   const visible = people
     .filter(

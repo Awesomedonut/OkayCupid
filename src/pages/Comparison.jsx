@@ -1,22 +1,28 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 import { Avatar } from "../components/Avatar.jsx";
 export function Comparison({ id, demoMode, go }) {
   const [data, setData] = useState(null),
     [error, setError] = useState(""),
     [tab, setTab] = useState("shared");
+  const requestVersion = useRef(0);
   async function load() {
+    const version = ++requestVersion.current;
     setError("");
     setData(null);
     try {
-      setData(await api(`${demoMode ? "/demo" : ""}/people/${id}`));
+      const result = await api(`${demoMode ? "/demo" : ""}/people/${id}`);
+      if (version === requestVersion.current) setData(result);
     } catch (e) {
-      setError(e.message);
+      if (version === requestVersion.current) setError(e.message);
     }
   }
   useEffect(() => {
     load();
     setTab("shared");
+    return () => {
+      requestVersion.current++;
+    };
   }, [id, demoMode]);
   if (error)
     return (

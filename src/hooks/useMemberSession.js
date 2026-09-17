@@ -10,10 +10,17 @@ export function useMemberSession({
   go,
 }) {
   const sessionVersion = useRef(0);
+  const currentContext = useRef(me?.mutationContext);
+  currentContext.current = me?.mutationContext;
   async function refresh(expected = me?.mutationContext) {
+    if (expected != null && expected !== currentContext.current)
+      throw new Error("Your session changed. Please try again.");
     const version = ++sessionVersion.current;
     const value = await api("/me");
-    if (version !== sessionVersion.current)
+    if (
+      version !== sessionVersion.current ||
+      (expected != null && expected !== currentContext.current)
+    )
       throw new Error("Your session changed. Please try again.");
     if (expected != null && value?.mutationContext !== expected) {
       setMe(null);

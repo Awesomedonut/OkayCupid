@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 export function useQuestionDraft({
   question,
@@ -10,6 +10,13 @@ export function useQuestionDraft({
   go,
   next,
 }) {
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const initial = drafts[question.id] || saved;
   const [explanation, setExplanation] = useState(initial?.explanation || ""),
     [answer, setAnswer] = useState(initial?.answer ?? -1),
@@ -36,6 +43,8 @@ export function useQuestionDraft({
     setError("");
     setMessage("");
     setBusy(true);
+    const submittedDraft = drafts[question.id];
+    const advance = e.nativeEvent.submitter?.value === "next";
     try {
       await api(
         `/answers/${question.id}`,
@@ -52,16 +61,18 @@ export function useQuestionDraft({
       );
       const member = await refresh(memberContext);
       const stored = member.answers[question.id];
+      if (drafts[question.id] !== submittedDraft) return;
+      drafts[question.id] = stored;
+      if (!mounted.current) return;
       setImportance(stored.importance);
       setAcceptable(stored.acceptable);
       setExplanation(stored.explanation);
-      drafts[question.id] = stored;
       setMessage("Answer saved. You can edit it any time.");
-      if (e.nativeEvent.submitter?.value === "next") next(true);
+      if (advance) next(true);
     } catch (e) {
-      setError(e.message);
+      if (mounted.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   async function skip() {
@@ -71,19 +82,23 @@ export function useQuestionDraft({
     try {
       await api(`/skipped/${question.id}`, "PUT", {}, memberContext);
       await refresh(memberContext);
-      next();
+      if (mounted.current) next();
     } catch (e) {
-      setError(e.message);
+      if (mounted.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   async function remove() {
+    const submittedDraft = drafts[question.id];
     setError("");
     setBusy(true);
     try {
       await api(`/answers/${question.id}`, "DELETE", {}, memberContext);
       await refresh(memberContext);
+      if (drafts[question.id] !== submittedDraft) return;
+      delete drafts[question.id];
+      if (!mounted.current) return;
       setAnswer(-1);
       setAcceptable([]);
       setNoPreference(false);
@@ -92,9 +107,9 @@ export function useQuestionDraft({
       setExplanation("");
       setMessage("Saved answer removed.");
     } catch (e) {
-      setError(e.message);
+      if (mounted.current) setError(e.message);
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   return {

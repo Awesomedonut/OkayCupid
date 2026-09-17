@@ -48,7 +48,7 @@ test('accounts, ownership, eligibility, privacy, export, logout and deletion wor
     assert.equal((await r('/answers/1', 'PUT', a(), ac, { 'Content-Type': 'text/plain' })).status, 415);
     assert.equal((await r('/answers/999', 'PUT', a(), ac)).status, 400);
     assert.equal((await r('/answers/1', 'PUT', a(9), ac)).status, 400);
-    assert.equal((await r('/answers/1', 'PUT', a(0, { acceptable: [] }), ac)).status, 400);
+    assert.equal((await r('/answers/1', 'PUT', a(0, { acceptable: [0, 0] }), ac)).status, 400);
     assert.equal((await r('/answers/1', 'PUT', a(0, { importance: 42 }), ac)).status, 400);
     assert.equal((await r('/answers/1', 'PUT', a(0, { user_id: bob.id, private: true }), ac)).status, 200);
     assert.deepEqual((await r('/me', 'GET', undefined, bc)).data.answers, {});
@@ -57,7 +57,7 @@ test('accounts, ownership, eligibility, privacy, export, logout and deletion wor
     await r('/answers/2', 'PUT', a(), bc);
     const comparison = await r(`/people/${bob.id}`, 'GET', undefined, ac);
     assert.equal(comparison.status, 200);
-    assert.equal(comparison.data.match.score, 71);
+    assert.equal(comparison.data.match.score, 21);
     assert.equal(comparison.data.match.privateOverlap, 1);
     assert.deepEqual(comparison.data.match.shared.map(x => x.id), [2]);
     assert.deepEqual(comparison.data.match.conflicts, []);
@@ -128,5 +128,28 @@ test('auth attempts are bounded and demo contains no real account data', async (
     assert.equal(demo.people.length, 8);
     assert.ok(demo.people.every(p => p.fictional && !p.answers && !p.email));
     assert.equal((await s.request('/demo/people/1')).status, 404);
+  } finally { await s.close(); }
+});
+
+test('API saves all and none as irrelevant while retaining own answers for reverse matching', async () => {
+  const s = await instance();
+  try {
+    const alice = await s.request('/register', 'POST', account('AllNone'));
+    const bob = await s.request('/register', 'POST', account('Reverse'));
+    const peer = (await s.request('/me', 'GET', undefined, bob.cookie)).data;
+    await s.request('/answers/1', 'PUT', a(0), bob.cookie);
+    await s.request('/answers/2', 'PUT', a(0), bob.cookie);
+    await s.request('/answers/2', 'PUT', a(0), alice.cookie);
+    for (const acceptable of [[], [0, 1, 2, 3]]) {
+      assert.equal((await s.request('/answers/1', 'PUT', a(1, { acceptable }), alice.cookie)).status, 200);
+      const saved = (await s.request('/me', 'GET', undefined, alice.cookie)).data.answers[1];
+      assert.equal(saved.answer, 1);
+      assert.equal(saved.importance, 0);
+      assert.deepEqual(saved.acceptable, acceptable);
+      const match = (await s.request(`/people/${peer.id}`, 'GET', undefined, alice.cookie)).data.match;
+      assert.equal(match.directionalA, 1);
+      assert.equal(match.directionalB, 0.5);
+      assert.equal(match.score, 21);
+    }
   } finally { await s.close(); }
 });

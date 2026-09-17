@@ -7,8 +7,8 @@ export function compare(a, b, questions) {
     const x = a[q.id], y = b[q.id];
     if (!x || !y) continue;
     overlap++;
-    const wx = x.noPreference ? 0 : x.importance;
-    const wy = y.noPreference ? 0 : y.importance;
+    const wx = x.noPreference || x.acceptable.length === 0 || x.acceptable.length === q.options.length ? 0 : x.importance;
+    const wy = y.noPreference || y.acceptable.length === 0 || y.acceptable.length === q.options.length ? 0 : y.importance;
     const acceptsA = x.acceptable.includes(y.answer), acceptsB = y.acceptable.includes(x.answer);
     totalA += wx; totalB += wy;
     earnedA += acceptsA ? wx : 0; earnedB += acceptsB ? wy : 0;
@@ -22,7 +22,9 @@ export function compare(a, b, questions) {
   }
   const directionalA = totalA ? earnedA / totalA : null;
   const directionalB = totalB ? earnedB / totalB : null;
-  return { score: directionalA === null || directionalB === null ? null : Math.round(100 * Math.sqrt(directionalA * directionalB)), directionalA, directionalB, overlap, meaningful, privateOverlap, confidence: meaningful < 10 ? 'Early signal' : meaningful < 40 ? 'Taking shape' : 'More context', shared, conflicts, topics };
+  const rawCompatibility = directionalA === null || directionalB === null ? null : Math.sqrt(directionalA * directionalB);
+  const score = rawCompatibility === null ? null : Math.round(100 * Math.max(0, rawCompatibility - 1 / overlap));
+  return { score, rawCompatibility, directionalA, directionalB, overlap, meaningful, privateOverlap, confidence: meaningful < 10 ? 'Early signal' : meaningful < 40 ? 'Taking shape' : 'More context', shared, conflicts, topics };
 }
 export function eligible(a, b) {
   return a.id !== b.id && a.desired.includes(b.gender) && b.desired.includes(a.gender);

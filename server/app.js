@@ -118,8 +118,8 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
   });
   app.put('/api/answers/:id', required, (req, res) => {
     const q = questions.find(q => String(q.id) === req.params.id), a = req.body;
-    if (!q || !Number.isInteger(a.answer) || a.answer < 0 || a.answer >= q.options.length || !Array.isArray(a.acceptable) || a.acceptable.some(v => !Number.isInteger(v) || v < 0 || v >= q.options.length) || new Set(a.acceptable).size !== a.acceptable.length || !weights.includes(a.importance) || typeof a.private !== 'boolean' || typeof a.noPreference !== 'boolean' || (!a.noPreference && !a.acceptable.length)) throw fail(400, 'Choose your answer, acceptable partner answers, and importance.');
-    const value = { answer: a.answer, acceptable: a.noPreference ? q.options.map((_, i) => i) : a.acceptable, importance: a.noPreference ? 0 : a.importance, private: a.private, noPreference: a.noPreference };
+    if (!q || !Number.isInteger(a.answer) || a.answer < 0 || a.answer >= q.options.length || !Array.isArray(a.acceptable) || a.acceptable.some(v => !Number.isInteger(v) || v < 0 || v >= q.options.length) || new Set(a.acceptable).size !== a.acceptable.length || !weights.includes(a.importance) || typeof a.private !== 'boolean' || typeof a.noPreference !== 'boolean') throw fail(400, 'Choose your answer, acceptable partner answers, and importance.');
+    const value = { answer: a.answer, acceptable: a.noPreference ? q.options.map((_, i) => i) : a.acceptable, importance: a.noPreference || a.acceptable.length === 0 || a.acceptable.length === q.options.length ? 0 : a.importance, private: a.private, noPreference: a.noPreference };
     db.prepare('INSERT INTO answers VALUES (?, ?, ?) ON CONFLICT(user_id, question_id) DO UPDATE SET value = excluded.value').run(req.member.id, q.id, JSON.stringify(value));
     res.json({ ok: true });
   });

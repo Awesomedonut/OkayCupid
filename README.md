@@ -30,13 +30,13 @@ For frontend development, run `npm start` in one terminal and `npm run dev` in a
 ## Use it
 
 1. Explore the fictional community as Alex, or register an adult account with a password of at least 12 characters.
-2. In Questions, select your answer, all acceptable partner answers, and importance. “No preference” sets zero weight. Save, edit, skip, remove, or mark an answer private.
+2. In Questions, select your answer, all acceptable partner answers, and importance. “No preference,” all acceptable options, or none sets zero directional weight while preserving your own answer. Save, edit, skip, remove, or mark an answer private.
 3. Navigate topics or filter answered/unanswered questions. Saving is explicit; skipping does not erase a saved answer. Reloading retains saved answers.
 4. Discover eligible people. Search by name, biography, or interests; filter city, age band, compatibility, and shared topics. Sort by compatibility, overlap, or name.
 5. Open a comparison to see both directional satisfaction fractions, overlap, shared answers, and important differences. Private answer details are excluded.
 6. Open your name in the header to edit your profile, export your own data as JSON, or permanently delete your account from the active database.
 
-See [the matching specification and historical sources](docs/matching.md). Scores summarize preferences, not chemistry or safety. Historical uncertainty and deliberate deviations are documented there.
+See [the matching specification and historical sources](docs/matching.md). Published scores subtract the historical 1/N adjustment from raw geometric compatibility, clamped at zero. Scores summarize preferences, not chemistry or safety. Historical uncertainty and deliberate deviations are documented there.
 
 ## Tests
 
@@ -47,7 +47,7 @@ npm run build
 npm run test:e2e
 ```
 
-The unit/API suite tests asymmetric weights, zero/unknown scores, no preference, privacy in both directions, eligibility, self-only writes, invalid inputs, password storage, opaque sessions, request origin protections, authentication rate limits, logout, export, deletion, and reopening SQLite with saved answers and sessions.
+The unit/API suite tests asymmetric weights, the historical 1/N adjustment at 1/2/50/100 overlaps, zero/unknown scores, all/none acceptable options, no preference, privacy in both directions, eligibility, self-only writes, invalid inputs, password storage, opaque sessions, request origin protections, authentication rate limits, logout, export, deletion, and reopening SQLite with saved answers and sessions.
 
 Playwright runs four journeys using one worker: demo and real-account flows at desktop and 390-pixel mobile widths. It launches an isolated server on loopback **8799** using a temporary database beneath ignored `.data/`; stop any unrelated service occupying that port before running. It never uses or resets the app’s normal database. Tests cover registration, saving/editing, private comparisons, visible conflicts, filters, profile editing, login/logout, export, deletion, and horizontal overflow. Set `PLAYWRIGHT_BROWSERS_PATH` if the browser cache is in a custom location. Set `EVIDENCE_DIR` to an existing directory outside the repository to save fictional-demo screenshots and browser test output there. Without it, screenshots are not saved and test output uses ignored `test-results/`.
 

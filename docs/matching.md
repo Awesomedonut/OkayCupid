@@ -4,37 +4,42 @@ Kindred is an independent reconstruction of the publicly explained question-base
 
 ## Historical sources and limits
 
-1. **Christian Rudder, “Inside OKCupid: The math of online dating,” TED-Ed (2013).** [Lesson and creator credits](https://ed.ted.com/lessons/inside-okcupid-the-math-of-online-dating-christian-rudder), [TED transcript](https://www.ted.com/talks/christian_rudder_inside_okcupid_the_math_of_online_dating/transcript), [video](https://www.youtube.com/watch?v=m9PiPlRuy6E). Retrieved September 17, 2026. Rudder identifies himself as an OkCupid founder. The transcript explicitly describes the three answer inputs, common answered questions, weights 0/1/10/50/250, two satisfaction fractions, and combining them using a geometric mean. Its example gives 50/51 and 10/11 satisfaction, approximately 94% combined. This is the primary source for the core implemented model.
-2. **[OkCupid, “Matching,” Wikipedia](https://en.wikipedia.org/wiki/OkCupid#Matching).** Retrieved September 17, 2026. This secondary description corroborates own answers, acceptable partner answers, importance, and hidden versus visible answers. It is context, not evidence for an exact historical implementation.
-3. **[Public recollection by @itsaboutawhale](https://x.com/itsaboutawhale/status/2100317804750569735), September 16, 2026.** The project’s reference describes answering over 100 questions about values, interests, fears, philosophy, and lifestyle, and meeting a spouse with a displayed 98% match. This is a personal recollection and the product motivation. It does not establish the underlying formula or an outcome guarantee.
+1. **[OkCupid, “Match Percentages,” archived official help](https://web.archive.org/web/20140101022839/https://www.okcupid.com/help/match-percentages).** Archived January 1, 2014; retrieved September 17, 2026. This technical primary source specifies the three inputs, weights, directional fractions, square root, published-score subtraction of 1/N, and all-or-none acceptable choices becoming irrelevant. It resolves the less precise TED wording and is the basis of the implemented historical calculation.
+2. **Christian Rudder, “Inside OKCupid: The math of online dating,” TED-Ed (2013).** [Lesson and creator credits](https://ed.ted.com/lessons/inside-okcupid-the-math-of-online-dating-christian-rudder), [TED transcript](https://www.ted.com/talks/christian_rudder_inside_okcupid_the_math_of_online_dating/transcript), [video](https://www.youtube.com/watch?v=m9PiPlRuy6E). Retrieved September 17, 2026. Rudder identifies himself as an OkCupid founder. The transcript explicitly describes the three answer inputs, common answered questions, weights 0/1/10/50/250, two satisfaction fractions, and combining them using a geometric mean. Its example gives 50/51 and 10/11 satisfaction, approximately 94% combined. This corroborates the core model.
+3. **[OkCupid, “Matching,” Wikipedia](https://en.wikipedia.org/wiki/OkCupid#Matching).** Retrieved September 17, 2026. This secondary description corroborates own answers, acceptable partner answers, importance, and hidden versus visible answers. It is context, not evidence for an exact historical implementation.
+4. **[Public recollection by @itsaboutawhale](https://x.com/itsaboutawhale/status/2100317804750569735), September 16, 2026.** The project’s reference describes answering over 100 questions about values, interests, fears, philosophy, and lifestyle, and meeting a spouse with a displayed 98% match. This is a personal recollection and the product motivation. It does not establish the underlying formula or an outcome guarantee.
 
-The primary transcript has an imprecise passage calling the final operation an “nth root” with n described as the number of questions, while also naming the geometric mean and demonstrating the square root of two directional scores. Kindred consistently uses the square root of the two fractions, regardless of question count. We disclose the ambiguity rather than presenting the transcript as an unambiguous technical specification.
-
-Rudder also mentions “a little correction for margin of error” with few questions, but the retrieved explanation does not specify that correction. Kindred does **not** invent or reproduce an exact historical correction, confidence interval, ranking policy, or chronology of algorithm changes. Historical matching had versions; this app is not a claim of feature-for-feature historical fidelity.
+The TED transcript has an imprecise “nth root” passage and mentions a small-sample correction without specifying it. The archived official help explicitly specifies the square root and subtraction of 1/N. Kindred follows that technical explanation. The source calls this a “margin of error” and makes statistical-validity claims; Kindred treats it as an **uncalibrated historical heuristic**, not a validated confidence interval or relationship-success probability. The retrieved sources do not establish every ranking policy or the chronology of algorithm changes.
 
 ## Inputs and calculation
 
 Each original question has four options. A member saves:
 
 - Their own answer, exactly one option.
-- One or more acceptable partner options, which need not include their own answer.
+- Zero or more acceptable partner options, which need not include their own answer.
 - Importance: irrelevant **0**, a little **1**, somewhat **10**, very **50**, essential **250**.
 - Whether the answer is private.
 - An explicit no-preference flag. Kindred normalizes this to all partner options accepted and zero importance.
+
+Selecting all or none of the acceptable options gives zero effective weight in that direction, just like explicit no preference. The own answer remains available to satisfy or disappoint the other member. The API stores zero importance for these choices; the matcher also applies the rule to previously saved answers.
 
 Let S be the question IDs answered by both A and B. For each q in S, let wA(q) be A’s importance weight and acceptA(Bq) be 1 when B’s answer is in A’s acceptable options, otherwise 0.
 
 ```text
 satisfaction(A ← B) = sum(wA(q) × acceptA(Bq)) / sum(wA(q))
 satisfaction(B ← A) = sum(wB(q) × acceptB(Aq)) / sum(wB(q))
-mutual percentage = round(100 × sqrt(satisfaction(A ← B) × satisfaction(B ← A)))
+raw compatibility = sqrt(satisfaction(A ← B) × satisfaction(B ← A))
+N = size of S
+published percentage = round(100 × max(0, raw compatibility - 1/N))
 ```
 
 The fractions use each member’s own weights and preferences. A disagreement can matter greatly in one direction and barely matter in the other. Only common questions enter either denominator. An unanswered or removed question contributes nothing.
 
-For an original example, suppose B meets a 250-point preference from A but misses a 50-point preference. A’s satisfaction is 250/300. A meets B’s 1-point preference but misses B’s 10-point preference, making B’s satisfaction 1/11. Their mutual percentage is approximately **28%**. Averaging would overstate the weaker direction.
+For an original example, suppose B meets a 250-point preference from A but misses a 50-point preference. A’s satisfaction is 250/300. A meets B’s 1-point preference but misses B’s 10-point preference, making B’s satisfaction 1/11. Their raw compatibility is approximately **28%**. With only two common questions, subtracting 50 percentage points gives a published score of **0%**. Averaging would overstate the weaker direction.
 
-If either denominator is zero, the score is **unknown**, including no overlap, only irrelevant questions, or one member expressing no preferences. A genuine zero appears only when both denominators exist and at least one direction has no satisfied weight. Unknown matches sort after known scores. Rounded percentages can hide small differences; they are not probabilities.
+If either denominator is zero, the score is **unknown**, including no overlap, only irrelevant questions, or one member expressing no preferences. A known zero appears when both denominators exist and either one direction has no satisfied weight or the historical adjustment reduces the score to zero. Unknown matches sort after known scores. Rounded percentages can hide small differences; they are not probabilities.
+
+Perfect raw compatibility with 1, 2, 50, or 100 common answers gives published scores of **0%, 50%, 98%, and 99%**, respectively. N includes every common answered question, including private and irrelevant answers; it is distinct from meaningful overlap. Directory sorting and filters use the published score. Comparisons also label the raw compatibility separately. Rounding happens only after subtraction and clamping.
 
 ## Overlap, topics, and conflict
 
@@ -46,7 +51,7 @@ Kindred reports both total common questions and meaningful common questions (at 
 | 10–39 | Taking shape |
 | 40 or more | More context |
 
-These are not calibrated statistical confidence. Many redundant answers can give less useful information than a few varied ones. A high score on one question is weak evidence; the display retains the actual count. “More context” does not imply sufficient knowledge to assess a person.
+These are not calibrated statistical confidence. Many redundant answers can give less useful information than a few varied ones. One perfect shared answer still produces a published 0%; the display retains the actual count and raw compatibility. “More context” does not imply sufficient knowledge to assess a person.
 
 Public shared ground means both members accept the other’s answer or assign zero weight to that question. Answers may differ while still being acceptable. Public differences are questions where a nonzero preference is unmet. An unmet 50- or 250-point preference is marked **Important difference**. This flag affects explanation, not an extra hidden score penalty. Topic counts summarize only public common questions; irrelevant public questions can appear as aligned.
 

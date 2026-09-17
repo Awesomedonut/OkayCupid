@@ -21,7 +21,7 @@ test('accounts, ownership, eligibility, privacy, export, logout and deletion wor
   try {
     const r = s.request;
     assert.equal((await r('/people')).status, 401);
-    assert.equal((await r('/answers/1', 'PUT', a())).status, 401);
+    assert.equal((await r('/answers/167', 'PUT', a())).status, 401);
     assert.equal((await r('/profile', 'PUT', account('Intruder'))).status, 401);
     assert.equal((await r('/account', 'DELETE', { confirm: 'DELETE' })).status, 401);
     assert.equal((await r('/register', 'POST', { ...account('Underage'), age: 17 })).status, 400);
@@ -43,28 +43,28 @@ test('accounts, ownership, eligibility, privacy, export, logout and deletion wor
     const casey = (await r('/me', 'GET', undefined, cr.cookie)).data;
     assert.equal((await r('/register', 'POST', account('Alice'))).status, 409);
     assert.equal((await r('/login', 'POST', { email: account('Alice').email, password: 'incorrect-password' })).status, 401);
-    assert.equal((await r('/answers/1', 'PUT', a(), ac, { Origin: 'https://hostile.example' })).status, 403);
-    assert.equal((await r('/answers/1', 'PUT', a(), ac, { 'Sec-Fetch-Site': 'cross-site' })).status, 403);
-    assert.equal((await r('/answers/1', 'PUT', a(), ac, { 'Content-Type': 'text/plain' })).status, 415);
+    assert.equal((await r('/answers/167', 'PUT', a(), ac, { Origin: 'https://hostile.example' })).status, 403);
+    assert.equal((await r('/answers/167', 'PUT', a(), ac, { 'Sec-Fetch-Site': 'cross-site' })).status, 403);
+    assert.equal((await r('/answers/167', 'PUT', a(), ac, { 'Content-Type': 'text/plain' })).status, 415);
     assert.equal((await r('/answers/999', 'PUT', a(), ac)).status, 400);
-    assert.equal((await r('/answers/1', 'PUT', a(9), ac)).status, 400);
-    assert.equal((await r('/answers/1', 'PUT', a(0, { acceptable: [0, 0] }), ac)).status, 400);
-    assert.equal((await r('/answers/1', 'PUT', a(0, { importance: 42 }), ac)).status, 400);
-    assert.equal((await r('/answers/1', 'PUT', a(0, { user_id: bob.id, private: true }), ac)).status, 200);
+    assert.equal((await r('/answers/167', 'PUT', a(9), ac)).status, 400);
+    assert.equal((await r('/answers/167', 'PUT', a(0, { acceptable: [0, 0] }), ac)).status, 400);
+    assert.equal((await r('/answers/167', 'PUT', a(0, { importance: 42 }), ac)).status, 400);
+    assert.equal((await r('/answers/167', 'PUT', a(0, { user_id: bob.id, private: true }), ac)).status, 200);
     assert.deepEqual((await r('/me', 'GET', undefined, bc)).data.answers, {});
-    await r('/answers/1', 'PUT', a(1), bc);
-    await r('/answers/2', 'PUT', a(), ac);
-    await r('/answers/2', 'PUT', a(), bc);
+    await r('/answers/167', 'PUT', a(1), bc);
+    await r('/answers/165', 'PUT', a(), ac);
+    await r('/answers/165', 'PUT', a(), bc);
     const comparison = await r(`/people/${bob.id}`, 'GET', undefined, ac);
     assert.equal(comparison.status, 200);
     assert.equal(comparison.data.match.score, 21);
     assert.equal(comparison.data.match.privateOverlap, 1);
-    assert.deepEqual(comparison.data.match.shared.map(x => x.id), [2]);
+    assert.deepEqual(comparison.data.match.shared.map(x => x.id), [165]);
     assert.deepEqual(comparison.data.match.conflicts, []);
     assert.equal(comparison.data.person.email, undefined);
     assert.equal(comparison.data.person.answers, undefined);
     const reverse = (await r(`/people/${alice.id}`, 'GET', undefined, bc)).data;
-    assert.deepEqual(reverse.match.shared.map(x => x.id), [2]);
+    assert.deepEqual(reverse.match.shared.map(x => x.id), [165]);
     assert.equal((await r(`/people/${casey.id}`, 'GET', undefined, ac)).status, 404);
     const directory = (await r('/people', 'GET', undefined, ac)).data;
     assert.deepEqual(directory.map(p => p.id), [bob.id]);
@@ -72,18 +72,18 @@ test('accounts, ownership, eligibility, privacy, export, logout and deletion wor
     assert.ok(!JSON.stringify(directory).includes('password'));
     assert.ok(!directory.some(p => p.fictional));
     const exported = (await r('/export', 'GET', undefined, ac)).data;
-    assert.equal(exported.answers[1].private, true);
+    assert.equal(exported.answers[167].private, true);
     assert.equal(exported.profile.email, alice.email);
     assert.equal(exported.profile.password, undefined);
     const storage = s.db.prepare('SELECT password FROM users WHERE id = ?').get(alice.id).password;
     assert.notEqual(storage, account('Alice').password);
     assert.match(storage, /^[a-f0-9]{32}:[a-f0-9]{128}$/);
     assert.equal(s.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE token = ?').get(ac.slice(8)).n, 0);
-    await r('/answers/2', 'DELETE', {}, ac);
-    assert.equal((await r('/me', 'GET', undefined, ac)).data.answers[2], undefined);
-    assert.ok((await r('/me', 'GET', undefined, bc)).data.answers[2]);
-    await r('/answers/3', 'PUT', a(0, { noPreference: true, acceptable: [] }), ac);
-    const pref = (await r('/me', 'GET', undefined, ac)).data.answers[3];
+    await r('/answers/165', 'DELETE', {}, ac);
+    assert.equal((await r('/me', 'GET', undefined, ac)).data.answers[165], undefined);
+    assert.ok((await r('/me', 'GET', undefined, bc)).data.answers[165]);
+    await r('/answers/167', 'PUT', a(0, { noPreference: true, acceptable: [] }), ac);
+    const pref = (await r('/me', 'GET', undefined, ac)).data.answers[167];
     assert.equal(pref.importance, 0);
     assert.deepEqual(pref.acceptable, [0, 1, 2, 3]);
     await r('/logout', 'POST', {}, ac);
@@ -106,13 +106,13 @@ test('answers and opaque sessions survive closing and reopening the SQLite serve
   try {
     const registration = await s.request('/register', 'POST', account('Persistent'));
     const cookie = registration.cookie;
-    await s.request('/answers/7', 'PUT', a(2, { acceptable: [1, 2], importance: 50, private: true }), cookie);
+    await s.request('/answers/165', 'PUT', a(2, { acceptable: [1, 2], importance: 50, private: true }), cookie);
     await s.close();
     s = await instance(database);
     const me = (await s.request('/me', 'GET', undefined, cookie)).data;
     assert.equal(me.name, 'Persistent');
-    assert.equal(me.answers[7].answer, 2);
-    assert.equal(me.answers[7].private, true);
+    assert.equal(me.answers[165].answer, 2);
+    assert.equal(me.answers[165].private, true);
     s.db.prepare('UPDATE sessions SET expires = 0').run();
     assert.equal((await s.request('/me', 'GET', undefined, cookie)).data, null);
   } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
@@ -137,12 +137,12 @@ test('API saves all and none as irrelevant while retaining own answers for rever
     const alice = await s.request('/register', 'POST', account('AllNone'));
     const bob = await s.request('/register', 'POST', account('Reverse'));
     const peer = (await s.request('/me', 'GET', undefined, bob.cookie)).data;
-    await s.request('/answers/1', 'PUT', a(0), bob.cookie);
-    await s.request('/answers/2', 'PUT', a(0), bob.cookie);
-    await s.request('/answers/2', 'PUT', a(0), alice.cookie);
+    await s.request('/answers/167', 'PUT', a(0), bob.cookie);
+    await s.request('/answers/165', 'PUT', a(0), bob.cookie);
+    await s.request('/answers/165', 'PUT', a(0), alice.cookie);
     for (const acceptable of [[], [0, 1, 2, 3]]) {
-      assert.equal((await s.request('/answers/1', 'PUT', a(1, { acceptable }), alice.cookie)).status, 200);
-      const saved = (await s.request('/me', 'GET', undefined, alice.cookie)).data.answers[1];
+      assert.equal((await s.request('/answers/167', 'PUT', a(1, { acceptable }), alice.cookie)).status, 200);
+      const saved = (await s.request('/me', 'GET', undefined, alice.cookie)).data.answers[167];
       assert.equal(saved.answer, 1);
       assert.equal(saved.importance, 0);
       assert.deepEqual(saved.acceptable, acceptable);
@@ -162,29 +162,66 @@ test('historical answers, explanations and durable skip state remain self-owned 
     const alice = await s.request('/register', 'POST', account('Writer'));
     const bob = await s.request('/register', 'POST', account('Reader'));
     const id = (await s.request('/me', 'GET', undefined, bob.cookie)).data.id;
-    assert.equal((await s.request('/skipped/161', 'PUT', {})).status, 401);
+    assert.equal((await s.request('/skipped/192', 'PUT', {})).status, 401);
     assert.equal((await s.request('/skipped/999', 'PUT', {}, alice.cookie)).status, 404);
-    await s.request('/skipped/161', 'PUT', {}, alice.cookie);
+    await s.request('/skipped/192', 'PUT', {}, alice.cookie);
     await s.request('/answers/162', 'PUT', a(0, { explanation: 'Private travel story', private: true }), alice.cookie);
     await s.request('/answers/162', 'PUT', a(), bob.cookie);
-    assert.equal((await s.request('/answers/161', 'PUT', a(0, { explanation: 'x'.repeat(1001) }), alice.cookie)).status, 400);
+    assert.equal((await s.request('/answers/192', 'PUT', a(0, { explanation: 'x'.repeat(1001) }), alice.cookie)).status, 400);
     await s.close(); s = await instance(`${dir}/test.sqlite`);
     let me = (await s.request('/me', 'GET', undefined, alice.cookie)).data;
-    assert.deepEqual(me.skipped, [161]);
+    assert.deepEqual(me.skipped, [192]);
     assert.equal(me.answers[162].explanation, 'Private travel story');
     assert.deepEqual((await s.request('/me', 'GET', undefined, bob.cookie)).data.skipped, []);
     let comparison = (await s.request(`/people/${id}`, 'GET', undefined, alice.cookie)).data;
     assert.ok(!JSON.stringify(comparison).includes('Private travel story'));
-    await s.request('/answers/161', 'PUT', a(1, { acceptable: [1], explanation: 'I prefer comedies' }), alice.cookie);
-    await s.request('/answers/161', 'PUT', a(1, { acceptable: [1] }), bob.cookie);
+    await s.request('/answers/192', 'PUT', a(1, { acceptable: [1], explanation: 'I prefer comedies' }), alice.cookie);
+    await s.request('/answers/192', 'PUT', a(1, { acceptable: [1] }), bob.cookie);
     me = (await s.request('/me', 'GET', undefined, alice.cookie)).data;
     assert.deepEqual(me.skipped, []);
     comparison = (await s.request(`/people/${id}`, 'GET', undefined, alice.cookie)).data;
     assert.equal(comparison.match.shared[0].yourExplanation, 'I prefer comedies');
     assert.ok(comparison.match.shared[0].provenance.url.includes('20110209'));
-    await s.request('/skipped/161', 'PUT', {}, alice.cookie);
-    assert.equal((await s.request('/me', 'GET', undefined, alice.cookie)).data.answers[161].answer, 1);
-    await s.request('/skipped/161', 'DELETE', {}, alice.cookie);
+    await s.request('/skipped/192', 'PUT', {}, alice.cookie);
+    assert.equal((await s.request('/me', 'GET', undefined, alice.cookie)).data.answers[192].answer, 1);
+    await s.request('/skipped/192', 'DELETE', {}, alice.cookie);
     assert.deepEqual((await s.request('/me', 'GET', undefined, alice.cookie)).data.skipped, []);
+  } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('retired records survive restart and export but cannot affect active matching or progress', async () => {
+  mkdirSync(resolve('.data'), { recursive: true });
+  const dir = mkdtempSync(resolve('.data/retirement-test-'));
+  let s = await instance(`${dir}/test.sqlite`);
+  try {
+    const alice = await s.request('/register', 'POST', account('Legacy'));
+    const bob = await s.request('/register', 'POST', account('Peer'));
+    const owner = (await s.request('/me', 'GET', undefined, alice.cookie)).data.id;
+    const peer = (await s.request('/me', 'GET', undefined, bob.cookie)).data.id;
+    for (const id of [1, 160, 161, 163]) {
+      for (const user of [owner, peer]) {
+        s.db.prepare('INSERT INTO answers VALUES (?, ?, ?)').run(user, id, JSON.stringify(a(0, { private: true, explanation: 'Preserved owner record' })));
+        s.db.prepare('INSERT INTO skipped VALUES (?, ?)').run(user, id);
+      }
+      assert.equal((await s.request(`/answers/${id}`, 'PUT', a(), alice.cookie)).status, 400);
+      assert.equal((await s.request(`/skipped/${id}`, 'PUT', {}, alice.cookie)).status, 404);
+    }
+    await s.close();
+    s = await instance(`${dir}/test.sqlite`);
+    const me = (await s.request('/me', 'GET', undefined, alice.cookie)).data;
+    assert.deepEqual(me.answers, {});
+    assert.deepEqual(me.skipped, []);
+    const match = (await s.request(`/people/${peer}`, 'GET', undefined, alice.cookie)).data.match;
+    assert.equal(match.score, null);
+    assert.equal(match.overlap, 0);
+    assert.deepEqual(match.shared, []);
+    assert.deepEqual(match.conflicts, []);
+    const exported = (await s.request('/export', 'GET', undefined, alice.cookie)).data;
+    assert.deepEqual(Object.keys(exported.answers), ['1', '160', '161', '163']);
+    assert.equal(exported.answers[161].explanation, 'Preserved owner record');
+    assert.deepEqual(exported.skipped, [1, 160, 161, 163]);
+    assert.ok(exported.retiredQuestions.ids.includes(163));
+    assert.equal(exported.questions.length, 79);
+    assert.equal(s.db.prepare('SELECT COUNT(*) n FROM answers').get().n, 8);
   } finally { await s.close(); rmSync(dir, { recursive: true, force: true }); }
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { compare, eligible } from '../shared/matching.js';
 import { questions, topics } from '../shared/questions.js';
 import { demo } from '../server/demo.js';
-const qs = questions.slice(0, 2);
+const qs = [167, 180].map((id, i) => ({ ...questions.find(q => q.id === id), id: i + 1 }));
 const answer = (own, acceptable, importance, extra = {}) => ({ answer: own, acceptable, importance, private: false, noPreference: false, ...extra });
 test('directional satisfaction uses each member’s distinct accepted answers and weights', () => {
   const a = { 1: answer(0, [1], 250), 2: answer(0, [0], 50) };
@@ -54,20 +54,21 @@ test('eligibility requires both gender preferences and excludes self', () => {
   assert.equal(eligible(a, b), true);
   assert.equal(eligible(a, a), false);
 });
-test('catalog has 160 app-written prompts and 81 sourced prompts and demo has eight adult candidates', () => {
-  assert.equal(questions.filter(q => !q.provenance).length, 160);
-  assert.equal(questions.filter(q => q.provenance).length, 81);
-  assert.equal(new Set(questions.map(q => q.prompt)).size, 241);
-  assert.equal(new Set(questions.map(q => q.id)).size, 241);
-  assert.equal(topics.length, 8);
-  assert.ok(questions.filter(q => !q.provenance).every(q => q.options.length === 4 && new Set(q.options).size === 4));
+test('catalog contains only documented historical prompts and choices with stable IDs', () => {
+  assert.equal(questions.length, 79);
+  assert.equal(new Set(questions.map(q => q.prompt)).size, 79);
+  assert.deepEqual(questions.map(q => q.id), [162, ...Array.from({ length: 78 }, (_, i) => i + 164)]);
+  assert.equal(questions.filter(q => q.provenance.optionsStatus === 'contemporary').length, 28);
+  assert.equal(questions.filter(q => q.provenance.optionsStatus === 'later').length, 51);
+  assert.ok(questions.every(q => q.provenance.url && q.provenance.optionsUrl));
+  assert.ok(topics.every(topic => questions.some(q => q.topic === topic)));
   assert.equal(demo.length, 9);
   assert.ok(demo.every(p => p.age >= 18 && p.fictional));
 });
 
 test('historical published score subtracts 1/N from perfect raw compatibility', () => {
   for (const [n, expected] of [[1, 0], [2, 50], [50, 98], [100, 99]]) {
-    const catalog = questions.slice(0, n);
+    const catalog = Array.from({ length: n }, (_, i) => ({ ...questions[0], id: i + 1 }));
     const answers = Object.fromEntries(catalog.map(q => [q.id, answer(0, [0], 10)]));
     const result = compare(answers, answers, catalog);
     assert.equal(result.overlap, n);

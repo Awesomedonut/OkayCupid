@@ -5,7 +5,7 @@ import { scrypt, randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { mkdirSync, chmodSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { questions, topics } from '../shared/questions.js';
+import { questions, topics, retiredQuestionIds, activeQuestionIds } from '../shared/questions.js';
 import { compare, eligible, weights } from '../shared/matching.js';
 import { demo, genders } from './demo.js';
 const derive = promisify(scrypt);
@@ -26,7 +26,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     CREATE TABLE IF NOT EXISTS answers (user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, question_id INTEGER NOT NULL, value TEXT NOT NULL, PRIMARY KEY(user_id, question_id));
     CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);`);
   db.exec('CREATE TABLE IF NOT EXISTS skipped (user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, question_id INTEGER NOT NULL, PRIMARY KEY(user_id, question_id))');
-  const getSkipped = id => db.prepare('SELECT question_id FROM skipped WHERE user_id = ?').all(id).map(r => r.question_id);
+  const getSkipped = (id, includeRetired = false) => db.prepare('SELECT question_id FROM skipped WHERE user_id = ?').all(id).map(r => r.question_id).filter(id => includeRetired || activeQuestionIds.has(id));
   const getIdentities = id => db.prepare('SELECT provider, subject FROM identities WHERE user_id = ?').all(id);
   let activeHashes = 0;
   const passwordKey = async (password, salt) => {
@@ -56,7 +56,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && (!req.body || typeof req.body !== 'object' || Array.isArray(req.body))) return next(fail(400, 'Send a JSON object.'));
     next();
   });
-  const getAnswers = id => Object.fromEntries(db.prepare('SELECT question_id, value FROM answers WHERE user_id = ?').all(id).map(r => [r.question_id, JSON.parse(r.value)]));
+  const getAnswers = (id, includeRetired = false) => Object.fromEntries(db.prepare('SELECT question_id, value FROM answers WHERE user_id = ?').all(id).filter(r => includeRetired || activeQuestionIds.has(r.question_id)).map(r => [r.question_id, JSON.parse(r.value)]));
   const profile = row => ({ id: row.id, name: row.name, age: row.age, gender: row.gender, desired: JSON.parse(row.desired), city: row.city, bio: row.bio, interests: row.interests, fictional: false });
   const tokenFrom = req => {
     const token = req.headers.cookie?.split(';').map(c => c.trim()).find(c => c.startsWith('kindred='))?.slice(8);
@@ -91,7 +91,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     if (!clean(body.name, 60, 1) || !Number.isInteger(body.age) || body.age < 18 || body.age > 110 || !genders.includes(body.gender) || !Array.isArray(body.desired) || !body.desired.length || body.desired.some(v => !genders.includes(v)) || new Set(body.desired).size !== body.desired.length || !clean(body.city, 80) || !clean(body.bio, 1200) || !clean(body.interests, 160)) throw fail(400, 'Please provide a name, age 18–110, gender, partner preferences, and valid profile fields.');
   };
   googleAuth({ app, db, session, required, limit, validateProfile, cookieOptions, publicOrigin, configuration: googleConfiguration });
-  app.get('/api/questions', (req, res) => res.json({ questions, topics }));
+  app.get('/api/questions', (req, res) => res.json({ questions, topics, retiredQuestionIds, activeQuestionIds }));
   app.get('/api/me', (req, res) => res.json(req.member ? { ...profile(req.member), email: req.member.email, answers: getAnswers(req.member.id), skipped: getSkipped(req.member.id) } : null));
   app.post('/api/register', limit, async (req, res) => {
     const b = req.body;
@@ -170,7 +170,7 @@ export function createApp({ database = process.env.DATABASE_PATH || '.data/kindr
     if (!row || !eligible(viewer, profile(row))) throw fail(404, 'Person not found or preferences do not align.');
     res.json({ person: profile(row), match: compare(getAnswers(req.member.id), getAnswers(row.id), questions) });
   });
-  app.get('/api/export', required, (req, res) => res.attachment('okaycupid-your-data.json').json({ profile: { ...profile(req.member), email: req.member.email }, answers: getAnswers(req.member.id), skipped: getSkipped(req.member.id), identities: getIdentities(req.member.id), questions, exportedAt: new Date().toISOString() }));
+  app.get('/api/export', required, (req, res) => res.attachment('okaycupid-your-data.json').json({ profile: { ...profile(req.member), email: req.member.email }, answers: getAnswers(req.member.id, true), skipped: getSkipped(req.member.id, true), retiredQuestions: { ids: retiredQuestionIds, reason: 'Excluded from the historical catalog; saved values are preserved but do not affect matching or progress.' }, identities: getIdentities(req.member.id), questions, exportedAt: new Date().toISOString() }));
   app.delete('/api/account', required, (req, res) => {
     if (req.body.confirm !== 'DELETE') throw fail(400, 'Type DELETE to confirm.');
     db.prepare('DELETE FROM users WHERE id = ?').run(req.member.id);

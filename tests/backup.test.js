@@ -15,7 +15,7 @@ test('WAL snapshot and safe restore preserve accounts, answers, skips and identi
     const registration = await fetch(`http://127.0.0.1:${server.address().port}/api/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Fiction', email: 'fiction@example.test', password: 'fictional-backup-password', age: 30, adult: true, gender: 'Nonbinary', desired: ['Nonbinary'], city: '', bio: '', interests: '' }) });
     assert.equal(registration.status, 201);
     db.prepare("INSERT INTO identities VALUES ('google','fictional-sub',1)").run();
-    db.prepare('INSERT INTO answers VALUES (1, 161, ?)').run(JSON.stringify({ answer: 0, acceptable: [0], importance: 50, private: true, noPreference: false, explanation: 'Fictional backup test' }));
+    db.prepare('INSERT INTO answers VALUES (1, 192, ?)').run(JSON.stringify({ answer: 0, acceptable: [0], importance: 50, private: true, noPreference: false, explanation: 'Fictional backup test' }));
     db.prepare('INSERT INTO skipped VALUES (1, 162)').run();
     db.prepare("INSERT INTO sessions VALUES ('fictional-digest',1,9999999999999)").run();
     assert.ok(existsSync(`${source}-wal`));
@@ -36,7 +36,7 @@ test('WAL snapshot and safe restore preserve accounts, answers, skips and identi
     const login = await fetch(`http://127.0.0.1:${restoredServer.address().port}/api/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'fiction@example.test', password: 'fictional-backup-password' }) });
     assert.equal(login.status, 200);
     const me = await (await fetch(`http://127.0.0.1:${restoredServer.address().port}/api/me`, { headers: { cookie: login.headers.get('set-cookie').split(';')[0] } })).json();
-    assert.equal(me.answers[161].explanation, 'Fictional backup test');
+    assert.equal(me.answers[192].explanation, 'Fictional backup test');
     const corrupt = join(dir, 'corrupt.sqlite'); writeFileSync(corrupt, 'not sqlite');
     await assert.rejects(snapshot(corrupt, join(dir, 'bad-restore.sqlite'), true));
     assert.equal(existsSync(join(dir, 'bad-restore.sqlite')), false);

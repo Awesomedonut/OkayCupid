@@ -2,7 +2,7 @@
 
 A self-hostable, question-based way to explore compatibility. Answer what matters, choose the answers you accept in a partner, and look at both shared ground and differences. No swiping, external images, paid services, or sensitive-answer analytics.
 
-okaycupid includes 81 prompts documented in 2011 across eight topics, alongside 160 questions written for this app by an AI implementation agent, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
+okaycupid includes 79 real historical prompts with documented answer choices across eight topics, persistent adult accounts, a separate fictional demo, mutual gender preferences, searchable member lists, transparent matching, private answers, profile editing, export, and account deletion. Its cobalt, coral, and pale butter interface uses bold sans headings, outlined cards, and keyboard-visible controls on desktop and narrow screens.
 
 ## Run locally
 
@@ -38,7 +38,14 @@ For frontend development, run `npm start` in one terminal and `npm run dev` in a
 5. Open a comparison to see both directional satisfaction fractions, overlap, shared answers, and important differences. Private answer details are excluded.
 6. Open your name in the header to edit your profile, export your own data as JSON, or permanently delete your account from the active database.
 
-Of the 81 historical prompts, 28 include choices documented in 2011, 51 use choices witnessed in a 2022 question file, and two retain adapted choices. The source and evidence date are shown on every question. This is a recovered subset, not the complete early bank. Existing question IDs and saved answer meanings are preserved.
+The questionnaire is pulled exclusively from real historical OkCupid questions and documented answer choices. No AI-written questionnaire prompts or invented choices are used. This recovered subset contains **79 questions**, not the complete early bank:
+
+- [Official OkTrends article, February 8, 2011, archived February 9](https://web.archive.org/web/20110209230710/http://blog.okcupid.com/index.php/the-best-questions-for-first-dates/): 166 chart prompt entries, without choice sets.
+- [Infochimps listing, archived October 31, 2011](https://web.archive.org/web/20111031212852/http://www.infochimps.com/datasets/personality-insights-okcupid-questions-and-answers-by-gender-age): 28 complete question/choice sets.
+- [Original question screenshot, February 2011 archive](https://web.archive.org/web/20110209230710im_/http://cdn.okccdn.com/blog/first_date_questions/PrivateQuestion2.png): the child-partner question's exact Yes/No display and privacy control.
+- [Question-only CSV, fixed January 21, 2022 revision](https://github.com/mathigatti/okCupidScraper/blob/47967ab9745e13300b46a7ead2e5c0d1b02fe216/questions.csv): 3,318 parsed records, with 54 prompts corroborating the early chart. We use its choices for 51 early prompts; two more use the earlier listing's choices. One additional matching prompt is outside this selected subset. Later choices are not claimed to be verified 2011 wording.
+
+Every active question exposes its prompt and choice provenance. IDs and option meanings remain stable. Retired IDs 1–161 and 163 are excluded from the catalog, answering, progress, discovery and matching. Their stored owner records remain in JSON exports with retirement metadata; upgrades do not delete accounts, sessions, answers or skips.
 
 See [the matching specification and historical sources](docs/matching.md). Published scores subtract the historical 1/N adjustment from raw geometric compatibility, clamped at zero. Scores summarize preferences, not chemistry or safety. Historical uncertainty and deliberate deviations are documented there.
 

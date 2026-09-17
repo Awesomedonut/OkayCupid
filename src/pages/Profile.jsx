@@ -3,7 +3,7 @@ import { useUnsavedWarning } from "../hooks/useUnsavedWarning.js";
 import { api } from "../api.js";
 import { ProfileFields } from "../components/ProfileFields.jsx";
 import { GoogleButton } from "../components/GoogleButton.jsx";
-export function Profile({ me, refresh, onDelete, active }) {
+export function Profile({ me, refresh, onDelete, beginSessionAction, active }) {
   const [value, setValue] = useState(me),
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
@@ -13,31 +13,34 @@ export function Profile({ me, refresh, onDelete, active }) {
   useUnsavedWarning(() => JSON.stringify(value) !== JSON.stringify(savedValue));
   async function save(e) {
     e.preventDefault();
+    const isCurrent = beginSessionAction(me.mutationContext);
     setBusy(true);
     setError("");
     setMessage("");
     try {
       await api("/profile", "PUT", value, me.mutationContext);
+      if (!isCurrent()) return;
       await refresh(me.mutationContext);
+      if (!isCurrent()) return;
       setSavedValue(value);
       setMessage("Profile saved.");
     } catch (e) {
-      setError(e.message);
+      if (isCurrent() && e.name !== "AbortError") setError(e.message);
     } finally {
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
   }
   async function remove(e) {
     e.preventDefault();
+    const isCurrent = beginSessionAction(me.mutationContext);
     setBusy(true);
     setError("");
     try {
-      await api("/account", "DELETE", { confirm }, me.mutationContext);
-      onDelete();
+      await onDelete(confirm, me.mutationContext);
     } catch (e) {
-      setError(e.message);
+      if (isCurrent() && e.name !== "AbortError") setError(e.message);
     } finally {
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
   }
   if (!active) return null;

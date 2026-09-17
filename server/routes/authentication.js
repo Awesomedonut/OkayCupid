@@ -8,7 +8,6 @@ export function authenticationRoutes({
   passwordKey,
   session,
   tokenFrom,
-  cookieOptions,
   required,
 }) {
   app.post("/api/register", limit, async (req, res) => {
@@ -79,6 +78,6 @@ export function authenticationRoutes({
     const token = tokenFrom(req);
     if (token)
       db.prepare("DELETE FROM sessions WHERE token = ?").run(hash(token));
-    res.clearCookie("kindred", cookieOptions).json({ ok: true });
+    res.json({ ok: true });
   });
 }

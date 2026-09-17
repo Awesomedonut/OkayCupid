@@ -80,3 +80,5 @@ Use `npm run backup -- SNAPSHOT_PATH` for a consistent online SQLite snapshot an
 ## License
 
 [MIT](LICENSE). okaycupid is independent of OkCupid and TED. External historical sources remain their authors’ works. See [source attribution and third-party notices](THIRD_PARTY_NOTICES.md).
+
+Logout and account deletion revoke sessions in SQLite without sending a session-cookie expiration header: a delayed expiration response could erase a newer sign-in cookie. The remaining HttpOnly cookie is an unusable opaque token after revocation and expires normally or is replaced on sign-in. Account deletion revokes all sessions belonging to the deleted account.

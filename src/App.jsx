@@ -41,7 +41,7 @@ export function App() {
   useEffect(() => {
     sessionStorage.setItem("kindred-mode", mode);
   }, [mode]);
-  const { refresh, sessionVersion, announceSession, logout } = useMemberSession(
+  const { refresh, sessionVersion, announceSession, logout, beginSessionAction, endSession } = useMemberSession(
     { me, setMe, setNotice, setError, setMode, go },
   );
   async function boot() {
@@ -218,15 +218,10 @@ export function App() {
                   me={me}
                   active={page === "profile"}
                   refresh={refresh}
-                  onDelete={() => {
-                    sessionVersion.current++;
-                    setMe(null);
-                    announceSession();
-                    go("home");
-                    setNotice(
-                      "Your account, answers, and sessions have been deleted.",
-                    );
-                  }}
+                  beginSessionAction={beginSessionAction}
+                  onDelete={(confirm, expected) =>
+                    endSession("/account", "DELETE", { confirm }, expected)
+                  }
                 />
               ) : (
                 page === "profile" && <JoinPrompt go={go} />

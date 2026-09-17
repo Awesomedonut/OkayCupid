@@ -8,7 +8,6 @@ export function accountRoutes({
   getAnswers,
   getSkipped,
   getIdentities,
-  cookieOptions,
 }) {
   app.put("/api/profile", required, (req, res) => {
     validateProfile(req.body);
@@ -47,6 +46,6 @@ export function accountRoutes({
       throw fail(400, "Type DELETE to confirm.");
     db.prepare("DELETE FROM oidc_transactions WHERE user_id = ?").run(req.member.id);
     db.prepare("DELETE FROM users WHERE id = ?").run(req.member.id);
-    res.clearCookie("kindred", cookieOptions).json({ ok: true });
+    res.json({ ok: true });
   });
 }

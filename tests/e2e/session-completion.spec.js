@@ -226,3 +226,72 @@ test('current logout and deletion failures preserve drafts and allow retry', asy
     }
   }
 });
+
+test('obsolete mutation notifications read the current cookie and preserve current drafts', async ({ page, context }, info) => {
+  await context.route('**/*', route => route.continue());
+  const original = profile('Notification Original');
+  const replacement = profile('Notification Replacement');
+  try {
+    expect((await page.request.post('/api/register', { data: original })).status()).toBe(201);
+    const owner = await member(page.request);
+    await page.goto('/#profile');
+    await page.getByLabel('About you').fill('Obsolete submitted biography');
+    let release, capture;
+    const captured = new Promise(resolve => { capture = resolve; });
+    const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/profile', async route => {
+      capture();
+      await gate;
+      await route.continue();
+    }, { times: 1 });
+    await page.getByRole('button', { name: 'Save profile', exact: true }).click();
+    await captured;
+    expect((await page.request.post('/api/register', { data: replacement })).status()).toBe(201);
+    await synchronize(page, replacement.name);
+    await draft(page);
+    const synchronized = page.waitForResponse(response => response.url().endsWith('/api/me'));
+    const rejected = page.waitForResponse(response => response.url().endsWith('/api/profile'));
+    release();
+    expect((await rejected).status()).toBe(409);
+    expect((await (await synchronized).json()).email).toBe(replacement.email);
+    await verifyAndPersist(page, replacement, info);
+    expect((await member(page.request)).mutationContext).not.toBe(owner.mutationContext);
+  } finally {
+    for (const account of [original, replacement]) {
+      if ((await page.request.post('/api/login', { data: account })).status() === 200) {
+        const current = await member(page.request);
+        await page.request.delete('/api/account', { headers: { 'X-Expected-Member': current.mutationContext }, data: { confirm: 'DELETE' } });
+      }
+    }
+  }
+});
+
+test('session invalidation during boot publishes the latest identity and finishes loading', async ({ page, context }) => {
+  await context.route('**/*', route => route.continue());
+  const original = profile('Boot Original');
+  const replacement = profile('Boot Replacement');
+  try {
+    expect((await page.request.post('/api/register', { data: original })).status()).toBe(201);
+    const owner = await member(page.request);
+    const pending = await hold(page, 'questions');
+    await page.goto('/#questions');
+    await pending.ready;
+    expect((await page.request.post('/api/register', { data: replacement })).status()).toBe(201);
+    const synchronized = page.waitForResponse(response => response.url().endsWith('/api/me'));
+    await page.evaluate(mutationContext => window.dispatchEvent(new CustomEvent('sessionchange', { detail: { mutationContext } })), owner.mutationContext);
+    expect((await (await synchronized).json()).email).toBe(replacement.email);
+    pending.release();
+    await pending.done;
+    await expect(page.locator('.account-nav a')).toContainText(replacement.name);
+    await expect(page.getByRole('heading', { name: 'Your point of view.' })).toBeVisible();
+    await expect(page.getByLabel(/Why this answer/)).toHaveValue('');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  } finally {
+    for (const account of [original, replacement]) {
+      if ((await page.request.post('/api/login', { data: account })).status() === 200) {
+        const current = await member(page.request);
+        await page.request.delete('/api/account', { headers: { 'X-Expected-Member': current.mutationContext }, data: { confirm: 'DELETE' } });
+      }
+    }
+  }
+});

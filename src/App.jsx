@@ -14,8 +14,7 @@ export function App() {
   const [page, setPage] = useState(
     location.hash.slice(1).split("?")[0] || "home",
   );
-  const [me, setMe] = useState(null),
-    [catalog, setCatalog] = useState(null),
+  const [catalog, setCatalog] = useState(null),
     [demo, setDemo] = useState(null);
   const [mode, setMode] = useState(() =>
       sessionStorage.getItem("kindred-mode") === "demo" ||
@@ -41,21 +40,20 @@ export function App() {
   useEffect(() => {
     sessionStorage.setItem("kindred-mode", mode);
   }, [mode]);
-  const { refresh, sessionVersion, announceSession, logout, beginSessionAction, endSession } = useMemberSession(
-    { me, setMe, setNotice, setError, setMode, go },
+  const { me, refresh, announceSession, logout, beginSessionAction, endSession } = useMemberSession(
+    { setNotice, setError, setMode, go },
   );
   async function boot() {
-    const version = ++sessionVersion.current;
     setError("");
     setLoading(true);
     try {
-      const [member, qs, sample] = await Promise.all([
-        api("/me"),
+      const [, qs, sample] = await Promise.all([
+        refresh(null).catch((error) => {
+          if (error.name !== "AbortError") throw error;
+        }),
         api("/questions"),
         api("/demo"),
       ]);
-      if (version !== sessionVersion.current) return;
-      setMe(member);
       setCatalog(qs);
       setDemo(sample);
     } catch (e) {

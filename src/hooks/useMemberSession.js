@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
 const sessionTab = crypto.randomUUID();
 function obsoleteSessionError() {
@@ -7,16 +7,14 @@ function obsoleteSessionError() {
   return error;
 }
 export function useMemberSession({
-  me,
-  setMe,
   setNotice,
   setError,
   setMode,
   go,
 }) {
+  const [me, setMe] = useState(null);
   const sessionVersion = useRef(0);
-  const currentContext = useRef(me?.mutationContext);
-  currentContext.current = me?.mutationContext;
+  const currentContext = useRef(undefined);
   function beginSessionAction(expected = currentContext.current) {
     return () => expected === currentContext.current;
   }
@@ -46,9 +44,7 @@ export function useMemberSession({
     return value;
   }
   useEffect(() => {
-    const check = async (event) => {
-      const expected = event?.detail?.mutationContext;
-      if (expected != null && expected !== currentContext.current) return;
+    const check = async () => {
       const isCurrent = beginSessionAction();
       try {
         await refresh(null);
@@ -94,5 +90,5 @@ export function useMemberSession({
       if (isCurrent() && error.name !== "AbortError") setError(error.message);
     }
   }
-  return { refresh, sessionVersion, announceSession, logout, beginSessionAction, endSession };
+  return { me, refresh, announceSession, logout, beginSessionAction, endSession };
 }
